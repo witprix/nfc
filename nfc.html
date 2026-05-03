@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web NFC Reader</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; text-align: center; }
+        button { padding: 15px 30px; font-size: 16px; cursor: pointer; }
+        #log { margin-top: 20px; padding: 10px; background: #f0f0f0; border-radius: 5px; text-align: left; min-height: 50px;}
+    </style>
+</head>
+<body>
+
+    <h2>NFC Tag Reader</h2>
+    <p>Tap a standard NDEF NFC tag against your device.</p>
+    
+    <button id="scanButton">Start Scanning</button>
+    
+    <div id="log">Waiting to start...</div>
+
+    <script>
+        const scanButton = document.getElementById('scanButton');
+        const logDiv = document.getElementById('log');
+
+        function logMessage(message) {
+            logDiv.innerHTML += `<div>${message}</div>`;
+        }
+
+        scanButton.addEventListener('click', async () => {
+            logDiv.innerHTML = ''; // Clear previous logs
+
+            // 1. Check if the browser supports Web NFC
+            if ('NDEFReader' in window) {
+                try {
+                    const ndef = new NDEFReader();
+                    
+                    // 2. Prompt the user to tap the tag
+                    await ndef.scan();
+                    logMessage("<strong>Scan started successfully.</strong> Tap an NFC tag to the back of your phone.");
+
+                    // 3. Handle read errors
+                    ndef.addEventListener("readingerror", () => {
+                        logMessage("Error: Could not read the NFC tag. It might not be formatted properly.");
+                    });
+
+                    // 4. Read the data
+                    ndef.addEventListener("reading", ({ message, serialNumber }) => {
+                        logMessage(`<strong>Tag Found!</strong> Serial Number: ${serialNumber}`);
+                        
+                        for (const record of message.records) {
+                            logMessage(`Record Type: ${record.recordType}`);
+                            
+                            // If it's a text record, decode and display it
+                            if (record.recordType === "text") {
+                                const textDecoder = new TextDecoder(record.encoding);
+                                logMessage(`Content: ${textDecoder.decode(record.data)}`);
+                            }
+                            // If it's a URL, decode and display it
+                            else if (record.recordType === "url") {
+                                const textDecoder = new TextDecoder();
+                                logMessage(`URL: ${textDecoder.decode(record.data)}`);
+                            } else {
+                                logMessage(`(Raw data for type: ${record.recordType})`);
+                            }
+                        }
+                    });
+
+                } catch (error) {
+                    logMessage(`<strong>Error:</strong> ${error.message}`);
+                }
+            } else {
+                logMessage("<strong>Web NFC is not supported on this browser or device.</strong>");
+            }
+        });
+    </script>
+</body>
+</html>
