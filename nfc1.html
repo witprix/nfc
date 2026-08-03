@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web NFC Reader/Writer</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; text-align: center; max-width: 520px; margin: 0 auto; }
+        button {
+            padding: 12px 24px;
+            font-size: 15px;
+            cursor: pointer;
+            margin: 4px;
+            border: none;
+            border-radius: 6px;
+            background: #2563eb;
+            color: #fff;
+        }
+        button.secondary { background: #6b7280; }
+        button.danger { background: #b00020; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        input, select, textarea {
+            font-size: 15px;
+            padding: 8px;
+            width: 100%;
+            box-sizing: border-box;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        label { display: block; font-weight: bold; margin-bottom: 4px; font-size: 14px; }
+        section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            text-align: left;
+        }
+        #log, #historyList {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 5px;
+            text-align: left;
+            min-height: 40px;
+            max-height: 260px;
+            overflow-y: auto;
+        }
+        .error { color: #b00020; }
+        .success { color: #1b7a1b; }
+        .muted { color: #666; font-size: 13px; }
+        .history-entry {
+            padding: 8px;
+            border-bottom: 1px solid #ddd;
+            font-size: 13px;
+        }
+        .history-entry:last-child { border-bottom: none; }
+        .history-entry .ts { color: #888; font-size: 11px; }
+        .btn-row { display: flex; gap: 6px; flex-wrap: wrap; }
+    </style>
+</head>
+<body>
+
+    <h2>NFC Tag Reader / Writer</h2>
+    <p class="muted">Tap a standard NDEF NFC tag against your device. Requires Chrome for Android over HTTPS.</p>
+
+    <section>
+        <h3>Read</h3>
+        <div class="btn-row">
+            <button id="scanButton">Start Scanning</button>
+            <button id="stopButton" class="secondary" disabled>Stop</button>
+        </div>
+    </section>
+
+    <section>
+        <h3>Write</h3>
+        <label for="recordType">Record type</label>
+        <select id="recordType">
+            <option value="text">Text</option>
+            <option value="url">URL</option>
+            <option value="vcard">Contact (vCard)</option>
+            <option value="wifi">Wi-Fi network</option>
+            <option value="applink">App / Play Store link</option>
+            <option value="mime">Custom MIME type</option>
+        </select>
+
+        <div id="writeFields"></div>
+
+        <button id="writeButton">Write to Tag</button>
+    </section>
+
+    <section>
+        <h3>Tag maintenance</h3>
+        <div class="btn-row">
+            <button id="eraseButton" class="secondary">Erase Tag</button>
+            <button id="lockButton" class="danger">Lock Tag (Permanent)</button>
+        </div>
+        <p class="muted">Locking is irreversible — the tag can never be written to again.</p>
+    </section>
+
+    <section>
+        <h3>Scan History</h3>
+        <div class="btn-row">
+            <button id="exportButton" class="secondary">Export JSON</button>
+            <button id="clearHistoryButton" class="secondary">Clear History</button>
+        </div>
+        <div id="historyList"><span class="muted">No scans yet.</span></div>
+    </section>
+
+    <div id="log">Waiting to start...</div>
+
+    <script>
+        const scanButton = document.getElementById('scanButton');
+        const stopButton = document.getElementById('stopButton');
+        const writeButton = document.getElementById('writeButton');
+        const eraseButton = document.getElementById('eraseButton');
+        const lockButton = document.getElementById('lockButton');
+        const exportButton = document.getElementById('exportButton');
+        const clearHistoryButton = document.getElementById('clearHistoryButton');
+        const recordTypeSelect = document.getElementById('recordType');
+        const writeFields = document.getElementById('writeFields');
+        const logDiv = document.getElementById('log');
+        const historyList = document.getElementById('historyList');
+
+        let abortController = null;
+        let history = [];
+
+        function logMessage(message, cls) {
+            const div = document.createElement('div');
+            if (cls) div.className = cls;
+            div.innerHTML = message;
+            logDiv.appendChild(div);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function clearLog() {
+            logDiv.innerHTML = '';
+        }
+
+        function vibrate(pattern) {
+            if ('vibrate' in navigator) navigator.vibrate(pattern);
+        }
+
+        function supported() {
+            if (!('NDEFReader' in window)) {
+                logMessage("<strong>Web NFC is not supported on this browser or device.</strong>", "error");
+                return false;
+            }
+            return true;
+        }
+
+        // ---------- WRITE FIELD FORMS ----------
+        function renderWriteFields() {
+            const type = recordTypeSelect.value;
+            let html = '';
+
+            if (type === 'text') {
+                html = `<label for="f_text">Text</label>
+                        <textarea id="f_text" rows="3" placeholder="Any text content"></textarea>`;
+            } else if (type === 'url') {
+                html = `<label for="f_url">URL</label>
+                        <input id="f_url" type="url" placeholder="https://example.com">`;
+            } else if (type === 'vcard') {
+                html = `<label for="f_name">Full name</label>
+                        <input id="f_name" placeholder="Jane Doe">
+                        <label for="f_phone">Phone</label>
+                        <input id="f_phone" placeholder="+1 555 123 4567">
+                        <label for="f_email">Email</label>
+                        <input id="f_email" type="email" placeholder="jane@example.com">
+                        <label for="f_org">Organization (optional)</label>
+                        <input id="f_org" placeholder="Company">`;
+            } else if (type === 'wifi') {
+                html = `<label for="f_ssid">Network name (SSID)</label>
+                        <input id="f_ssid" placeholder="MyWiFiNetwork">
+                        <label for="f_pass">Password</label>
+                        <input id="f_pass" placeholder="password">
+                        <label for="f_sec">Security</label>
+                        <select id="f_sec">
+                            <option value="WPA">WPA/WPA2</option>
+                            <option value="WEP">WEP</option>
+                            <option value="nopass">None</option>
+                        </select>
+                        <p class="muted">Written as text in the standard "WIFI:S:...;;" format used by Wi-Fi QR codes. Auto-join on tap depends on the reading device/app.</p>`;
+            } else if (type === 'applink') {
+                html = `<label for="f_link">App link or Play Store URL</label>
+                        <input id="f_link" type="url" placeholder="https://play.google.com/store/apps/details?id=com.example.app">
+                        <p class="muted">Written as a URL record. Use a deep link or store URL — the OS handles routing to the app when supported.</p>`;
+            } else if (type === 'mime') {
+                html = `<label for="f_mimetype">MIME type</label>
+                        <input id="f_mimetype" placeholder="application/json">
+                        <label for="f_mimedata">Data</label>
+                        <textarea id="f_mimedata" rows="3" placeholder='{"key":"value"}'></textarea>`;
+            }
+
+            writeFields.innerHTML = html;
+        }
+
+        recordTypeSelect.addEventListener('change', renderWriteFields);
+        renderWriteFields();
+
+        function buildRecord() {
+            const type = recordTypeSelect.value;
+
+            if (type === 'text') {
+                const text = document.getElementById('f_text').value.trim();
+                if (!text) throw new Error('Enter some text.');
+                return { record: { recordType: 'text', data: text }, summary: `text: "${text}"` };
+            }
+
+            if (type === 'url') {
+                const url = document.getElementById('f_url').value.trim();
+                if (!url) throw new Error('Enter a URL.');
+                return { record: { recordType: 'url', data: url }, summary: `url: ${url}` };
+            }
+
+            if (type === 'vcard') {
+                const name = document.getElementById('f_name').value.trim();
+                const phone = document.getElementById('f_phone').value.trim();
+                const email = document.getElementById('f_email').value.trim();
+                const org = document.getElementById('f_org').value.trim();
+                if (!name) throw new Error('Enter a name for the contact.');
+
+                let vcard = 'BEGIN:VCARD\nVERSION:3.0\n';
+                vcard += `FN:${name}\n`;
+                if (org) vcard += `ORG:${org}\n`;
+                if (phone) vcard += `TEL:${phone}\n`;
+                if (email) vcard += `EMAIL:${email}\n`;
+                vcard += 'END:VCARD';
+
+                return {
+                    record: { recordType: 'mime', mediaType: 'text/vcard', data: vcard },
+                    summary: `vCard: ${name}`
+                };
+            }
+
+            if (type === 'wifi') {
+                const ssid = document.getElementById('f_ssid').value.trim();
+                const pass = document.getElementById('f_pass').value.trim();
+                const sec = document.getElementById('f_sec').value;
+                if (!ssid) throw new Error('Enter a network name.');
+
+                const secField = sec === 'nopass' ? 'nopass' : sec;
+                const wifiString = `WIFI:S:${ssid};T:${secField};P:${pass};;`;
+
+                return { record: { recordType: 'text', data: wifiString }, summary: `Wi-Fi: ${ssid}` };
+            }
+
+            if (type === 'applink') {
+                const link = document.getElementById('f_link').value.trim();
+                if (!link) throw new Error('Enter a link.');
+                return { record: { recordType: 'url', data: link }, summary: `app link: ${link}` };
+            }
+
+            if (type === 'mime') {
+                const mimeType = document.getElementById('f_mimetype').value.trim();
+                const data = document.getElementById('f_mimedata').value.trim();
+                if (!mimeType || !data) throw new Error('Enter both a MIME type and data.');
+                return {
+                    record: { recordType: 'mime', mediaType: mimeType, data: data },
+                    summary: `${mimeType}: ${data.slice(0, 40)}${data.length > 40 ? '…' : ''}`
+                };
+            }
+
+            throw new Error('Unknown record type.');
+        }
+
+        // ---------- HISTORY ----------
+        function addHistoryEntry(entry) {
+            history.unshift(entry);
+            renderHistory();
+        }
+
+        function renderHistory() {
+            if (history.length === 0) {
+                historyList.innerHTML = '<span class="muted">No scans yet.</span>';
+                return;
+            }
+            historyList.innerHTML = history.map((h, i) => `
+                <div class="history-entry">
+                    <div class="ts">${h.time}</div>
+                    <div><strong>Serial:</strong> ${h.serialNumber || 'n/a'}</div>
+                    <div>${h.records.map(r => `${r.type}: ${r.value}`).join('<br>')}</div>
+                    <button class="secondary copy-btn" data-index="${i}" style="padding:4px 10px;font-size:12px;margin-top:4px;">Copy</button>
+                </div>
+            `).join('');
+
+            historyList.querySelectorAll('.copy-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const entry = history[btn.dataset.index];
+                    const text = entry.records.map(r => `${r.type}: ${r.value}`).join('\n');
+                    navigator.clipboard.writeText(text).then(() => {
+                        btn.textContent = 'Copied!';
+                        setTimeout(() => { btn.textContent = 'Copy'; }, 1200);
+                    });
+                });
+            });
+        }
+
+        exportButton.addEventListener('click', () => {
+            if (history.length === 0) {
+                logMessage('No history to export.', 'error');
+                return;
+            }
+            const blob = new Blob([JSON.stringify(history, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `nfc-scan-history-${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+
+        clearHistoryButton.addEventListener('click', () => {
+            history = [];
+            renderHistory();
+        });
+
+        // ---------- READ ----------
+        scanButton.addEventListener('click', async () => {
+            clearLog();
+            if (!supported()) return;
+
+            try {
+                abortController = new AbortController();
+                const ndef = new NDEFReader();
+
+                await ndef.scan({ signal: abortController.signal });
+                logMessage("<strong>Scan started successfully.</strong> Tap an NFC tag to the back of your phone.", "success");
+                scanButton.disabled = true;
+                stopButton.disabled = false;
+
+                ndef.addEventListener("readingerror", () => {
+                    logMessage("Error: Could not read the NFC tag. It might not be formatted properly.", "error");
+                    vibrate(100);
+                });
+
+                ndef.addEventListener("reading", ({ message, serialNumber }) => {
+                    vibrate(200);
+                    logMessage(`<strong>Tag Found!</strong> Serial Number: ${serialNumber}`);
+
+                    const parsedRecords = [];
+
+                    for (const record of message.records) {
+                        logMessage(`Record Type: ${record.recordType}`);
+
+                        if (record.recordType === "text") {
+                            const textDecoder = new TextDecoder(record.encoding);
+                            const value = textDecoder.decode(record.data);
+                            logMessage(`Content: ${value}`);
+                            parsedRecords.push({ type: 'text', value });
+                        } else if (record.recordType === "url") {
+                            const textDecoder = new TextDecoder();
+                            const value = textDecoder.decode(record.data);
+                            logMessage(`URL: ${value}`);
+                            parsedRecords.push({ type: 'url', value });
+                        } else if (record.recordType === "mime") {
+                            const textDecoder = new TextDecoder();
+                            let value;
+                            try { value = textDecoder.decode(record.data); }
+                            catch (e) { value = '(binary data)'; }
+                            logMessage(`MIME (${record.mediaType}): ${value}`);
+                            parsedRecords.push({ type: record.mediaType || 'mime', value });
+                        } else {
+                            logMessage(`(Raw data for type: ${record.recordType})`);
+                            parsedRecords.push({ type: record.recordType, value: '(raw data)' });
+                        }
+                    }
+
+                    addHistoryEntry({
+                        time: new Date().toLocaleString(),
+                        serialNumber,
+                        records: parsedRecords
+                    });
+                });
+
+            } catch (error) {
+                logMessage(`<strong>Error:</strong> ${error.message}`, "error");
+                scanButton.disabled = false;
+                stopButton.disabled = true;
+            }
+        });
+
+        stopButton.addEventListener('click', () => {
+            if (abortController) {
+                abortController.abort();
+                logMessage('Scanning stopped.');
+            }
+            scanButton.disabled = false;
+            stopButton.disabled = true;
+        });
+
+        // ---------- WRITE ----------
+        writeButton.addEventListener('click', async () => {
+            clearLog();
+            if (!supported()) return;
+
+            let built;
+            try {
+                built = buildRecord();
+            } catch (e) {
+                logMessage(`<strong>Error:</strong> ${e.message}`, "error");
+                return;
+            }
+
+            try {
+                const ndef = new NDEFReader();
+                logMessage("Tap the NFC tag against your device to write...");
+
+                await ndef.write({ records: [built.record] });
+
+                vibrate(200);
+                logMessage(`<strong>Write successful!</strong> Wrote ${built.summary}`, "success");
+            } catch (error) {
+                logMessage(`<strong>Write failed:</strong> ${error.message}`, "error");
+            }
+        });
+
+        // ---------- ERASE ----------
+        eraseButton.addEventListener('click', async () => {
+            clearLog();
+            if (!supported()) return;
+
+            try {
+                const ndef = new NDEFReader();
+                logMessage("Tap the NFC tag against your device to erase...");
+
+                // Write a single empty text record — the closest widely-supported
+                // equivalent to a blank tag.
+                await ndef.write({ records: [{ recordType: 'empty' }] });
+
+                logMessage(`<strong>Tag erased.</strong>`, "success");
+            } catch (error) {
+                logMessage(`<strong>Erase failed:</strong> ${error.message}`, "error");
+            }
+        });
+
+        // ---------- LOCK ----------
+        lockButton.addEventListener('click', async () => {
+            clearLog();
+            if (!supported()) return;
+
+            const confirmed = confirm(
+                "This will PERMANENTLY lock the tag. It can never be written to again. Continue?"
+            );
+            if (!confirmed) return;
+
+            try {
+                const ndef = new NDEFReader();
+                logMessage("Tap the NFC tag against your device to lock it permanently...");
+
+                if (typeof ndef.makeReadOnly !== 'function') {
+                    logMessage("<strong>This browser does not support locking tags.</strong>", "error");
+                    return;
+                }
+
+                await ndef.makeReadOnly();
+                logMessage(`<strong>Tag locked.</strong> It is now permanently read-only.`, "success");
+            } catch (error) {
+                logMessage(`<strong>Lock failed:</strong> ${error.message}`, "error");
+            }
+        });
+    </script>
+</body>
+</html>
