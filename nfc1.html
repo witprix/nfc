@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web NFC Reader/Writer</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; text-align: center; }
+        button { padding: 15px 30px; font-size: 16px; cursor: pointer; margin: 5px; }
+        input, select, textarea {
+            font-size: 16px;
+            padding: 8px;
+            width: 100%;
+            box-sizing: border-box;
+            margin-bottom: 10px;
+        }
+        section {
+            max-width: 480px;
+            margin: 20px auto;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            text-align: left;
+        }
+        #log {
+            margin-top: 20px;
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 5px;
+            text-align: left;
+            min-height: 50px;
+        }
+        .error { color: #b00020; }
+        .success { color: #1b7a1b; }
+    </style>
+</head>
+<body>
+
+    <h2>NFC Tag Reader / Writer</h2>
+    <p>Tap a standard NDEF NFC tag against your device.</p>
+
+    <section>
+        <h3>Read</h3>
+        <button id="scanButton">Start Scanning</button>
+    </section>
+
+    <section>
+        <h3>Write</h3>
+        <label for="recordType">Record type</label>
+        <select id="recordType">
+            <option value="text">Text</option>
+            <option value="url">URL</option>
+        </select>
+
+        <label for="writeData">Data</label>
+        <textarea id="writeData" rows="3" placeholder="Enter text or URL to write"></textarea>
+
+        <button id="writeButton">Write to Tag</button>
+    </section>
+
+    <div id="log">Waiting to start...</div>
+
+    <script>
+        const scanButton = document.getElementById('scanButton');
+        const writeButton = document.getElementById('writeButton');
+        const recordTypeSelect = document.getElementById('recordType');
+        const writeDataInput = document.getElementById('writeData');
+        const logDiv = document.getElementById('log');
+
+        function logMessage(message, cls) {
+            const div = document.createElement('div');
+            if (cls) div.className = cls;
+            div.innerHTML = message;
+            logDiv.appendChild(div);
+        }
+
+        function clearLog() {
+            logDiv.innerHTML = '';
+        }
+
+        // ---------- READ ----------
+        scanButton.addEventListener('click', async () => {
+            clearLog();
+
+            if (!('NDEFReader' in window)) {
+                logMessage("<strong>Web NFC is not supported on this browser or device.</strong>", "error");
+                return;
+            }
+
+            try {
+                const ndef = new NDEFReader();
+
+                await ndef.scan();
+                logMessage("<strong>Scan started successfully.</strong> Tap an NFC tag to the back of your phone.", "success");
+
+                ndef.addEventListener("readingerror", () => {
+                    logMessage("Error: Could not read the NFC tag. It might not be formatted properly.", "error");
+                });
+
+                ndef.addEventListener("reading", ({ message, serialNumber }) => {
+                    logMessage(`<strong>Tag Found!</strong> Serial Number: ${serialNumber}`);
+
+                    for (const record of message.records) {
+                        logMessage(`Record Type: ${record.recordType}`);
+
+                        if (record.recordType === "text") {
+                            const textDecoder = new TextDecoder(record.encoding);
+                            logMessage(`Content: ${textDecoder.decode(record.data)}`);
+                        } else if (record.recordType === "url") {
+                            const textDecoder = new TextDecoder();
+                            logMessage(`URL: ${textDecoder.decode(record.data)}`);
+                        } else {
+                            logMessage(`(Raw data for type: ${record.recordType})`);
+                        }
+                    }
+                });
+
+            } catch (error) {
+                logMessage(`<strong>Error:</strong> ${error.message}`, "error");
+            }
+        });
+
+        // ---------- WRITE ----------
+        writeButton.addEventListener('click', async () => {
+            clearLog();
+
+            if (!('NDEFReader' in window)) {
+                logMessage("<strong>Web NFC is not supported on this browser or device.</strong>", "error");
+                return;
+            }
+
+            const type = recordTypeSelect.value;
+            const data = writeDataInput.value.trim();
+
+            if (!data) {
+                logMessage("Please enter some data to write.", "error");
+                return;
+            }
+
+            try {
+                // Writing uses the same NDEFReader object (Chrome exposes .write() on it;
+                // some implementations also expose a separate NDEFWriter — this covers both).
+                const Writer = ('NDEFWriter' in window) ? window.NDEFWriter : window.NDEFReader;
+                const ndef = new Writer();
+
+                logMessage("Tap the NFC tag against your device to write...");
+
+                const record = type === "url"
+                    ? { recordType: "url", data: data }
+                    : { recordType: "text", data: data };
+
+                await ndef.write({ records: [record] });
+
+                logMessage(`<strong>Write successful!</strong> Wrote ${type}: "${data}"`, "success");
+
+            } catch (error) {
+                // Common causes: tag is read-only, tag moved away too soon, or permission denied.
+                logMessage(`<strong>Write failed:</strong> ${error.message}`, "error");
+            }
+        });
+    </script>
+</body>
+</html>
