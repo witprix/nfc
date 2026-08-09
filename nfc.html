@@ -21,26 +21,37 @@
     --mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Consolas, monospace;
     --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   }
+  [data-theme="light"]{
+    --bg:#f4f7f6; --bg-raised:#eaf0ee; --bg-card:#ffffff; --line:#dbe4e1;
+    --text:#10181a; --text-dim:#4c5c5e; --text-faint:#84989a;
+    --signal:#0e9c86; --signal-dim:#c7ede4; --write:#c17410; --write-dim:#f3ddb3;
+  }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:var(--sans);}
   body{
     min-height:100vh;
     padding: max(16px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
     display:flex; flex-direction:column; gap:16px;
+    transition:background .2s ease, color .2s ease;
   }
   @media(min-width:560px){ body{ max-width:520px; margin:0 auto; } }
 
   /* ---------- header ---------- */
-  header{ display:flex; align-items:center; justify-content:space-between; padding-top:4px; }
-  .brand{ display:flex; align-items:center; gap:10px; }
+  header{ display:flex; align-items:center; justify-content:space-between; padding-top:4px; gap:8px; }
+  .brand{ display:flex; align-items:center; gap:10px; min-width:0; }
   .brand .mark{
-    width:34px; height:34px; border-radius:9px;
+    width:34px; height:34px; border-radius:9px; flex:none;
     background:linear-gradient(155deg, var(--signal), #0f8f7c);
     display:flex; align-items:center; justify-content:center;
     font-family:var(--mono); font-weight:700; color:#04120f; font-size:15px;
   }
   .brand h1{ font-size:16px; margin:0; letter-spacing:0.2px; font-weight:650; }
   .brand span.sub{ display:block; font-size:11px; color:var(--text-faint); font-family:var(--mono); letter-spacing:0.5px; margin-top:1px;}
+  .head-right{ display:flex; align-items:center; gap:8px; flex:none; }
+  .icon-btn{
+    width:34px; height:34px; border-radius:9px; background:var(--bg-card); border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center; font-size:15px; cursor:pointer; color:var(--text);
+  }
   .status-chip{
     font-family:var(--mono); font-size:11px; padding:5px 9px; border-radius:20px;
     border:1px solid var(--line); color:var(--text-dim); white-space:nowrap;
@@ -62,39 +73,32 @@
   .panel{ display:none; flex-direction:column; gap:14px; }
   .panel.active{ display:flex; }
 
-  /* ---------- scan stage (signature element) ---------- */
+  /* ---------- scan stage ---------- */
   .stage{
-    position:relative; height:190px; border-radius:16px; overflow:hidden;
-    background:radial-gradient(120% 100% at 50% 100%, #10201d 0%, var(--bg-raised) 60%, var(--bg-raised) 100%);
+    position:relative; height:180px; border-radius:16px; overflow:hidden;
+    background:radial-gradient(120% 100% at 50% 100%, var(--signal-dim) 0%, var(--bg-raised) 60%, var(--bg-raised) 100%);
     border:1px solid var(--line);
     display:flex; align-items:center; justify-content:center;
   }
   .stage .rings{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
-  .ring{
-    position:absolute; border-radius:50%; border:1.5px solid var(--signal); opacity:0;
-  }
+  .ring{ position:absolute; border-radius:50%; border:1.5px solid var(--signal); opacity:0; }
   .stage.scanning .ring{ animation: pulse 2.2s cubic-bezier(.2,.6,.3,1) infinite; }
   .stage.writing .ring{ border-color:var(--write); animation: pulse 1.3s cubic-bezier(.2,.6,.3,1) infinite; }
   .ring:nth-child(1){ animation-delay:0s; }
   .ring:nth-child(2){ animation-delay:.55s; }
   .ring:nth-child(3){ animation-delay:1.1s; }
-  @keyframes pulse{
-    0%{ width:40px; height:40px; opacity:.9; }
-    100%{ width:210px; height:210px; opacity:0; }
-  }
+  @keyframes pulse{ 0%{ width:40px; height:40px; opacity:.9; } 100%{ width:210px; height:210px; opacity:0; } }
   @media (prefers-reduced-motion: reduce){
     .stage.scanning .ring, .stage.writing .ring{ animation:none; opacity:.25; width:150px; height:150px;}
   }
-  .stage .core{
-    position:relative; z-index:2; display:flex; flex-direction:column; align-items:center; gap:8px;
-  }
+  .stage .core{ position:relative; z-index:2; display:flex; flex-direction:column; align-items:center; gap:8px; }
   .core .icon{
-    width:56px; height:56px; border-radius:16px; background:var(--bg-card); border:1px solid var(--line);
-    display:flex; align-items:center; justify-content:center; font-size:24px;
+    width:54px; height:54px; border-radius:16px; background:var(--bg-card); border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center; font-size:23px;
   }
   .stage.scanning .core .icon{ border-color:var(--signal-dim); }
   .stage.writing .core .icon{ border-color:var(--write-dim); }
-  .core .label{ font-family:var(--mono); font-size:12px; color:var(--text-dim); letter-spacing:0.4px; text-align:center; padding:0 20px;}
+  .core .label{ font-family:var(--mono); font-size:11.5px; color:var(--text-dim); letter-spacing:0.3px; text-align:center; padding:0 20px;}
   .core .label b{ color:var(--text); font-weight:600; }
 
   /* ---------- buttons ---------- */
@@ -110,41 +114,72 @@
   .btn-outline{ background:transparent; color:var(--text); border:1px solid var(--line); }
   .btn-danger{ background:transparent; color:var(--danger); border:1px solid #4a2323; }
   .btn-ghost{ background:var(--bg-card); color:var(--text-dim); border:1px solid var(--line); }
+  .btn-sm{ padding:8px 10px; font-size:12.5px; border-radius:9px; width:auto; }
   .btn-row{ display:flex; gap:8px; }
+  .chip-row{ display:flex; flex-wrap:wrap; gap:8px; }
+  .chip-btn{
+    background:var(--bg-raised); border:1px solid var(--line); color:var(--text-dim); font-size:12.5px;
+    font-weight:600; padding:9px 12px; border-radius:20px; cursor:pointer; display:flex; align-items:center; gap:6px;
+  }
+  .chip-btn.active{ background:var(--signal-dim); color:var(--text); border-color:var(--signal); }
+  .chip-btn:disabled{ opacity:.35; cursor:not-allowed; }
 
-  /* ---------- cards / log ---------- */
+  /* ---------- cards ---------- */
   .card{ background:var(--bg-card); border:1px solid var(--line); border-radius:14px; padding:14px; }
-  .card h3{ margin:0 0 10px; font-size:12px; text-transform:uppercase; letter-spacing:0.8px; color:var(--text-faint); font-weight:700; }
+  .card h3{ margin:0 0 10px; font-size:12px; text-transform:uppercase; letter-spacing:0.8px; color:var(--text-faint); font-weight:700; display:flex; align-items:center; justify-content:space-between; }
   .empty{ color:var(--text-faint); font-size:13px; font-family:var(--mono); text-align:center; padding:18px 0; }
 
   .record{ border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:8px; background:var(--bg-raised); }
   .record:last-child{ margin-bottom:0; }
-  .record .rtype{ font-family:var(--mono); font-size:10.5px; color:var(--signal); text-transform:uppercase; letter-spacing:0.6px; margin-bottom:4px; }
+  .record .rtop{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px; }
+  .record .rtype{ font-family:var(--mono); font-size:10.5px; color:var(--signal); text-transform:uppercase; letter-spacing:0.6px; }
   .record .rdata{ font-size:13.5px; word-break:break-word; line-height:1.5; }
   .record .rmeta{ font-family:var(--mono); font-size:11px; color:var(--text-faint); margin-top:5px; }
 
   .tag-meta{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px; }
   .meta-pill{ font-family:var(--mono); font-size:11px; background:var(--bg-raised); border:1px solid var(--line); color:var(--text-dim); padding:5px 9px; border-radius:8px; }
 
-  .log-item{ display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--line); font-size:12.5px; }
+  .log-item{ display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--line); font-size:12.5px; gap:8px; }
   .log-item:last-child{ border-bottom:none; }
   .log-item .lt{ font-family:var(--mono); color:var(--text-dim); }
-  .log-item .ld{ color:var(--text-faint); font-family:var(--mono); font-size:11px; }
+  .log-item .ld{ color:var(--text-faint); font-family:var(--mono); font-size:11px; white-space:nowrap; }
 
   /* ---------- write form ---------- */
   .field{ display:flex; flex-direction:column; gap:6px; }
   .field label{ font-size:12px; color:var(--text-dim); font-weight:600; }
   .field select, .field input, .field textarea{
     background:var(--bg-raised); border:1px solid var(--line); border-radius:10px; padding:11px 12px;
-    color:var(--text); font-size:14px; font-family:var(--sans); resize:vertical;
+    color:var(--text); font-size:14px; font-family:var(--sans); resize:vertical; width:100%;
   }
-  .field textarea{ font-family:var(--mono); min-height:80px; }
+  .field textarea{ font-family:var(--mono); min-height:70px; }
   .field select{ appearance:none; -webkit-appearance:none; background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path d='M0 0l5 6 5-6z' fill='%238fa1a6'/></svg>"); background-repeat:no-repeat; background-position:right 12px center; padding-right:30px;}
   .field input:focus, .field select:focus, .field textarea:focus{ outline:2px solid var(--signal); outline-offset:1px; }
+  .field-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
   .record-list{ display:flex; flex-direction:column; gap:8px; }
   .record-row{ display:flex; gap:8px; align-items:flex-start; }
   .record-row .rr-body{ flex:1; display:flex; flex-direction:column; gap:6px; }
   .rr-remove{ background:transparent; border:1px solid var(--line); color:var(--danger); border-radius:8px; width:34px; height:34px; flex:none; font-size:16px; cursor:pointer; }
+
+  .composer{ margin-top:10px; padding-top:10px; border-top:1px dashed var(--line); display:flex; flex-direction:column; gap:8px; }
+  .tpl-item{ border:1px solid var(--line); background:var(--bg-raised); border-radius:10px; padding:10px 12px; margin-bottom:8px; }
+  .tpl-item:last-child{ margin-bottom:0; }
+  .tpl-item .tt{ display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .tpl-item .tlabel{ font-size:13.5px; font-weight:600; }
+  .tpl-item .tsub{ font-family:var(--mono); font-size:10.5px; color:var(--text-faint); margin-top:2px; text-transform:uppercase; letter-spacing:0.4px;}
+  .tpl-actions{ display:flex; gap:6px; flex:none; }
+  .tpl-actions button{ background:transparent; border:1px solid var(--line); color:var(--text-dim); border-radius:7px; width:30px; height:30px; font-size:13px; cursor:pointer; }
+  .tpl-actions button.danger{ color:var(--danger); }
+
+  /* capacity meter */
+  .cap-bar{ height:8px; border-radius:6px; background:var(--bg-raised); overflow:hidden; border:1px solid var(--line); }
+  .cap-fill{ height:100%; background:var(--signal); width:0%; transition:width .2s ease, background .2s ease; }
+  .cap-fill.warn{ background:var(--write); }
+  .cap-fill.over{ background:var(--danger); }
+  .cap-text{ display:flex; justify-content:space-between; font-family:var(--mono); font-size:11px; color:var(--text-dim); margin-top:6px; }
+
+  .switch-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:9px 0; }
+  .switch-row label{ font-size:13px; font-weight:500; }
+  .switch-row input{ width:18px; height:18px; }
 
   .toast{
     position:fixed; left:16px; right:16px; bottom:max(16px, env(safe-area-inset-bottom));
@@ -163,7 +198,20 @@
   }
   .notice b{ color:var(--text); }
 
+  /* modal */
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,.62); display:none; align-items:center; justify-content:center;
+    z-index:100; padding:20px;
+  }
+  .modal-overlay.show{ display:flex; }
+  .modal-card{ background:var(--bg-card); border:1px solid var(--line); border-radius:16px; padding:18px; max-width:300px; width:100%; }
+  .modal-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; font-size:13px; font-weight:700; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.5px;}
+  .modal-close{ background:transparent; border:none; color:var(--text-dim); font-size:20px; cursor:pointer; line-height:1; }
+  .qr-box{ display:flex; align-items:center; justify-content:center; background:#fff; border-radius:10px; padding:12px; min-height:200px; }
+  .qr-caption{ margin-top:10px; font-family:var(--mono); font-size:11px; color:var(--text-faint); text-align:center; word-break:break-all; }
+
   footer{ text-align:center; color:var(--text-faint); font-family:var(--mono); font-size:10.5px; letter-spacing:0.4px; padding:6px 0 2px; }
+  input[type="file"]{ display:none; }
 </style>
 </head>
 <body>
@@ -176,7 +224,10 @@
         <span class="sub">READ · WRITE · INSPECT</span>
       </div>
     </div>
-    <div class="status-chip" id="statusChip"><span class="dot"></span><span id="statusText">checking…</span></div>
+    <div class="head-right">
+      <button class="icon-btn" id="btnTheme" title="Toggle theme">🌙</button>
+      <div class="status-chip" id="statusChip"><span class="dot"></span><span id="statusText">checking…</span></div>
+    </div>
   </header>
 
   <div class="tabs">
@@ -222,11 +273,54 @@
     </div>
 
     <div class="card">
-      <h3>Records to Write</h3>
+      <h3>Quick Templates</h3>
+      <div class="chip-row">
+        <button class="chip-btn" data-tpl="wifi">📶 Wi-Fi</button>
+        <button class="chip-btn" data-tpl="vcard">👤 Contact</button>
+        <button class="chip-btn" data-tpl="geo">📍 Location</button>
+        <button class="chip-btn" data-tpl="tel">☎ Phone</button>
+        <button class="chip-btn" data-tpl="sms">💬 SMS</button>
+        <button class="chip-btn" data-tpl="email">✉ Email</button>
+        <button class="chip-btn" id="btnCloneLast" disabled>📋 Clone Last Read</button>
+      </div>
+      <div class="composer" id="composer" style="display:none;"></div>
+    </div>
+
+    <div class="card" id="templateRecordsCard" style="display:none;">
+      <h3>Template Records</h3>
+      <div id="templateRecordsList"></div>
+    </div>
+
+    <div class="card">
+      <h3>Custom Records (Text / URL / MIME)</h3>
       <div class="record-list" id="writeRecordList"></div>
       <div class="btn-row" style="margin-top:10px;">
         <button class="btn btn-ghost" id="btnAddRecord" type="button">+ Add Record</button>
       </div>
+    </div>
+
+    <div class="card">
+      <h3>Capacity Estimate</h3>
+      <div class="field-grid" style="margin-bottom:10px;">
+        <div class="field">
+          <label>Tag Type</label>
+          <select id="tagPreset">
+            <option value="ntag213">NTAG213 (144 B)</option>
+            <option value="ntag215" selected>NTAG215 (504 B)</option>
+            <option value="ntag216">NTAG216 (888 B)</option>
+            <option value="mifare1k">MIFARE Classic 1K (~716 B)</option>
+            <option value="ultralight">MIFARE Ultralight (~46 B)</option>
+            <option value="custom">Custom…</option>
+          </select>
+        </div>
+        <div class="field" id="customCapWrap" style="display:none;">
+          <label>Custom Bytes</label>
+          <input type="number" id="customCapBytes" value="504" min="16">
+        </div>
+      </div>
+      <div class="cap-bar"><div class="cap-fill" id="capFill"></div></div>
+      <div class="cap-text"><span id="capUsed">0 B used</span><span id="capPct">0%</span></div>
+      <div class="notice" style="margin-top:10px;">Sizes are <b>estimated</b> from NDEF record overhead — actual usable memory varies by chip and is not exposed by Web NFC.</div>
     </div>
 
     <div class="btn-row">
@@ -235,15 +329,30 @@
 
     <div class="card">
       <h3>Tag Options</h3>
-      <div class="field" style="margin-bottom:10px;">
-        <label style="display:flex; align-items:center; gap:8px; font-weight:500;">
-          <input type="checkbox" id="chkOverwrite" checked style="width:16px;height:16px;"> Overwrite existing content
-        </label>
+      <div class="switch-row">
+        <label for="chkOverwrite">Overwrite existing content</label>
+        <input type="checkbox" id="chkOverwrite" checked>
       </div>
-      <button class="btn btn-danger" id="btnMakeReadOnly">🔒 Make Tag Permanently Read-Only</button>
+      <div class="switch-row">
+        <label for="chkVerify">Verify after write</label>
+        <input type="checkbox" id="chkVerify" checked>
+      </div>
+      <div class="switch-row">
+        <label for="chkFeedback">Vibration &amp; sound feedback</label>
+        <input type="checkbox" id="chkFeedback" checked>
+      </div>
+      <div class="btn-row" style="margin-top:6px;">
+        <button class="btn btn-ghost" id="btnSaveTemplate" type="button">💾 Save as Template</button>
+      </div>
+      <button class="btn btn-danger" id="btnMakeReadOnly" style="margin-top:10px;">🔒 Make Tag Permanently Read-Only</button>
       <div class="notice" style="margin-top:10px;">
-        <b>Warning —</b> making a tag read-only is <b>irreversible</b>. The tag can never be written to again, by this app or any other.
+        <b>Warning —</b> making a tag read-only is <b>irreversible</b>. Note also that per-chip password protection (e.g. NTAG213/215/216 password lock) is <b>not</b> exposed by the Web NFC API — only the standard NDEF read-only lock above is available here.
       </div>
+    </div>
+
+    <div class="card" id="savedTemplatesCard" style="display:none;">
+      <h3>Saved Templates</h3>
+      <div id="savedTemplatesList"></div>
     </div>
   </section>
 
@@ -253,26 +362,45 @@
       <h3>Session Log</h3>
       <div id="historyList"><div class="empty">Nothing logged yet</div></div>
     </div>
-    <button class="btn btn-outline" id="btnClearHistory">Clear History</button>
-    <div class="notice">History is kept in memory only for this browser session — nothing is uploaded or stored remotely.</div>
+    <div class="btn-row">
+      <button class="btn btn-outline" id="btnExportBackup">⬇ Export Backup</button>
+      <button class="btn btn-outline" id="btnImportBackup">⬆ Import Backup</button>
+      <input type="file" id="fileImport" accept="application/json">
+    </div>
+    <button class="btn btn-danger" id="btnClearHistory">Clear History</button>
+    <div class="notice">History and templates live in memory for this browser session only — export a backup before closing the tab if you want to keep them.</div>
   </section>
 
   <footer>WEB NFC · CHROME ON ANDROID · HTTPS REQUIRED</footer>
 
   <div class="toast" id="toast"><span class="tdot"></span><span id="toastMsg"></span></div>
 
+  <div class="modal-overlay" id="qrOverlay">
+    <div class="modal-card">
+      <div class="modal-head"><span>QR Code</span><button class="modal-close" id="qrClose">×</button></div>
+      <div class="qr-box" id="qrBox"></div>
+      <div class="qr-caption" id="qrCaption"></div>
+    </div>
+  </div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
 (function(){
   "use strict";
 
-  // ---------------- state ----------------
+  // ==================== STATE ====================
   let ndef = null;
   let scanning = false;
   let scanController = null;
+  let verifying = false;
   let history = [];
   let recordSeq = 0;
+  let pendingTemplateRecords = []; // {id, label, sub, recordType, mediaType, data, qrText}
+  let savedTemplates = [];         // {name, template:[...], custom:[...]}
+  let lastReadRaw = null;          // [{recordType, mediaType, encoding, lang, buffer}]
+  let currentTheme = "dark";
 
-  // ---------------- helpers ----------------
+  // ==================== DOM HELPERS ====================
   const $ = (id) => document.getElementById(id);
   const toastEl = $("toast"), toastMsg = $("toastMsg");
   let toastTimer = null;
@@ -282,7 +410,7 @@
     toastEl.classList.toggle("err", !!isErr);
     toastEl.classList.add("show");
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(()=> toastEl.classList.remove("show"), 3200);
+    toastTimer = setTimeout(()=> toastEl.classList.remove("show"), 3400);
   }
 
   function setStatus(text, ok){
@@ -293,65 +421,44 @@
     if(ok === false) chip.classList.add("bad");
   }
 
-  function fmtTime(d){
-    return d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
-  }
+  function fmtTime(d){ return d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'}); }
+  function escapeHtml(str){ const d = document.createElement("div"); d.textContent = String(str); return d.innerHTML; }
+  function utf8Bytes(str){ return new TextEncoder().encode(str); }
+  function bytesToHex(bytes){ return Array.from(bytes).map(b => b.toString(16).padStart(2,'0')).join(' '); }
 
-  function bytesToHex(bytes){
-    return Array.from(bytes).map(b => b.toString(16).padStart(2,'0')).join(' ');
-  }
-
-  function decodeRecordPayload(record){
-    // record: NDEFRecord
+  // ==================== FEEDBACK (vibration + sound) ====================
+  let audioCtx = null;
+  function beep(freq, dur, type){
+    if(!$("chkFeedback").checked) return;
     try{
-      if(record.recordType === "text"){
-        const decoder = new TextDecoder(record.encoding || "utf-8");
-        // Web NFC text payload includes a language-code prefix per NDEF text record spec
-        // record.data is a DataView already stripped of that by the browser in most impls,
-        // but we defensively decode raw bytes if needed.
-        return decoder.decode(record.data);
-      }
-      if(record.recordType === "url" || record.recordType === "absolute-url"){
-        return new TextDecoder().decode(record.data);
-      }
-      if(record.recordType === "mime"){
-        try{
-          return new TextDecoder().decode(record.data);
-        }catch(e){
-          return "[binary MIME payload, " + record.data.byteLength + " bytes]";
-        }
-      }
-      if(record.recordType === "empty"){
-        return "(empty record)";
-      }
-      // unknown / smart-poster / external etc — show hex
-      const bytes = new Uint8Array(record.data.buffer, record.data.byteOffset, record.data.byteLength);
-      return bytesToHex(bytes);
-    }catch(e){
-      return "[unable to decode payload]";
-    }
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+      osc.type = type || 'sine'; osc.frequency.value = freq || 880;
+      gain.gain.setValueAtTime(0.16, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + (dur||140)/1000);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(); osc.stop(audioCtx.currentTime + (dur||140)/1000);
+    }catch(e){ /* audio not available — silently ignore */ }
+  }
+  function feedbackSuccess(){
+    if(!$("chkFeedback").checked) return;
+    if(navigator.vibrate) navigator.vibrate(120);
+    beep(880, 150, 'sine');
+  }
+  function feedbackError(){
+    if(!$("chkFeedback").checked) return;
+    if(navigator.vibrate) navigator.vibrate([70,60,70]);
+    beep(220, 220, 'square');
   }
 
-  function addHistory(entry){
-    history.unshift(entry);
-    renderHistory();
-  }
+  // ==================== THEME ====================
+  $("btnTheme").addEventListener("click", ()=>{
+    currentTheme = currentTheme === "dark" ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", currentTheme);
+    $("btnTheme").textContent = currentTheme === "dark" ? "🌙" : "☀️";
+  });
 
-  function renderHistory(){
-    const list = $("historyList");
-    if(history.length === 0){
-      list.innerHTML = '<div class="empty">Nothing logged yet</div>';
-      return;
-    }
-    list.innerHTML = history.map(h => `
-      <div class="log-item">
-        <span class="lt">${h.icon} ${h.text}</span>
-        <span class="ld">${h.time}</span>
-      </div>
-    `).join("");
-  }
-
-  // ---------------- tabs ----------------
+  // ==================== TABS ====================
   document.querySelectorAll(".tab").forEach(tab=>{
     tab.addEventListener("click", ()=>{
       document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
@@ -361,7 +468,7 @@
     });
   });
 
-  // ---------------- feature detection ----------------
+  // ==================== FEATURE DETECTION ====================
   const isSecure = window.isSecureContext;
   const hasNDEF = "NDEFReader" in window;
 
@@ -377,14 +484,8 @@
   }
 
   function guardSupport(){
-    if(!isSecure){
-      showToast("This page must be served over HTTPS.", true);
-      return false;
-    }
-    if(!hasNDEF){
-      showToast("Web NFC is only supported in Chrome for Android (v89+).", true);
-      return false;
-    }
+    if(!isSecure){ showToast("This page must be served over HTTPS.", true); return false; }
+    if(!hasNDEF){ showToast("Web NFC is only supported in Chrome for Android (v89+).", true); return false; }
     return true;
   }
 
@@ -402,7 +503,7 @@
     }
   }
 
-  // ---------------- READ ----------------
+  // ==================== READ ====================
   const readStage = $("readStage"), readIcon = $("readIcon"), readLabel = $("readLabel");
   const btnStartScan = $("btnStartScan"), btnStopScan = $("btnStopScan");
 
@@ -421,6 +522,7 @@
 
       ndef.onreading = (event) => handleReading(event);
       ndef.onreadingerror = () => {
+        feedbackError();
         showToast("Read error — reposition the tag and try again.", true);
       };
 
@@ -431,9 +533,7 @@
     }
   }
 
-  function stopScan(){
-    if(scanController) scanController.abort();
-  }
+  function stopScan(){ if(scanController) scanController.abort(); }
 
   function stopScanUI(){
     scanning = false;
@@ -445,20 +545,47 @@
     setStatus("ready", true);
   }
 
+  function decodeRecordPayload(record){
+    try{
+      if(record.recordType === "text"){
+        return new TextDecoder(record.encoding || "utf-8").decode(record.data);
+      }
+      if(record.recordType === "url" || record.recordType === "absolute-url"){
+        return new TextDecoder().decode(record.data);
+      }
+      if(record.recordType === "mime"){
+        try{ return new TextDecoder("utf-8", {fatal:true}).decode(record.data); }
+        catch(e){ return "[binary payload, " + record.data.byteLength + " bytes] " + bytesToHex(new Uint8Array(record.data.buffer, record.data.byteOffset, Math.min(record.data.byteLength,24))) + (record.data.byteLength>24?" …":""); }
+      }
+      if(record.recordType === "empty") return "(empty record)";
+      const bytes = new Uint8Array(record.data.buffer, record.data.byteOffset, record.data.byteLength);
+      return bytesToHex(bytes);
+    }catch(e){ return "[unable to decode payload]"; }
+  }
+
   function handleReading(event){
     const serial = event.serialNumber || "unknown";
     const now = new Date();
+    feedbackSuccess();
 
-    // brief flash to confirm a read landed
     readIcon.textContent = "✅";
     setTimeout(()=>{ if(scanning) readIcon.textContent = "📶"; }, 900);
+
+    // store raw records for cloning
+    lastReadRaw = event.message.records.map(r=>({
+      recordType: r.recordType,
+      mediaType: r.mediaType || null,
+      encoding: r.encoding || null,
+      lang: r.lang || null,
+      buffer: r.data ? r.data.buffer.slice(r.data.byteOffset, r.data.byteOffset + r.data.byteLength) : null
+    }));
+    $("btnCloneLast").disabled = lastReadRaw.length === 0;
 
     $("readResultCard").style.display = "block";
     $("readEmptyCard").style.display = "none";
 
-    const meta = $("tagMeta");
-    meta.innerHTML = `
-      <span class="meta-pill">Serial: ${serial}</span>
+    $("tagMeta").innerHTML = `
+      <span class="meta-pill">Serial: ${escapeHtml(serial)}</span>
       <span class="meta-pill">${event.message.records.length} record(s)</span>
       <span class="meta-pill">${fmtTime(now)}</span>
     `;
@@ -467,66 +594,151 @@
     if(event.message.records.length === 0){
       container.innerHTML = '<div class="empty">Tag is empty</div>';
     } else {
-      container.innerHTML = event.message.records.map(rec => {
+      container.innerHTML = event.message.records.map((rec, i) => {
         const decoded = decodeRecordPayload(rec);
         const size = rec.data ? rec.data.byteLength : 0;
         return `
           <div class="record">
-            <div class="rtype">${rec.recordType}${rec.mediaType ? " · " + rec.mediaType : ""}</div>
+            <div class="rtop">
+              <span class="rtype">${escapeHtml(rec.recordType)}${rec.mediaType ? " · " + escapeHtml(rec.mediaType) : ""}</span>
+              <button class="btn-sm btn-ghost" data-qr-read="${i}" type="button">QR</button>
+            </div>
             <div class="rdata">${escapeHtml(decoded)}</div>
-            <div class="rmeta">${size} bytes${rec.lang ? " · lang: " + rec.lang : ""}${rec.encoding ? " · " + rec.encoding : ""}</div>
+            <div class="rmeta">${size} bytes${rec.lang ? " · lang: " + escapeHtml(rec.lang) : ""}${rec.encoding ? " · " + escapeHtml(rec.encoding) : ""}</div>
           </div>
         `;
       }).join("");
+      container.querySelectorAll("[data-qr-read]").forEach(btn=>{
+        btn.addEventListener("click", ()=>{
+          const idx = Number(btn.getAttribute("data-qr-read"));
+          const rec = event.message.records[idx];
+          openQR(decodeRecordPayload(rec), rec.recordType + (rec.mediaType ? " · "+rec.mediaType : ""));
+        });
+      });
     }
 
     addHistory({ icon:"📥", text:`Read tag (${event.message.records.length} records, ${serial})`, time: fmtTime(now) });
   }
 
-  function escapeHtml(str){
-    const d = document.createElement("div");
-    d.textContent = str;
-    return d.innerHTML;
-  }
-
   btnStartScan.addEventListener("click", startScan);
   btnStopScan.addEventListener("click", stopScan);
 
-  // ---------------- WRITE ----------------
-  const writeStage = $("writeStage"), writeIcon = $("writeIcon"), writeLabel = $("writeLabel");
+  // ==================== HISTORY ====================
+  function addHistory(entry){ history.unshift(entry); renderHistory(); }
+  function renderHistory(){
+    const list = $("historyList");
+    if(history.length === 0){ list.innerHTML = '<div class="empty">Nothing logged yet</div>'; return; }
+    list.innerHTML = history.map(h => `
+      <div class="log-item"><span class="lt">${escapeHtml(h.icon)} ${escapeHtml(h.text)}</span><span class="ld">${escapeHtml(h.time)}</span></div>
+    `).join("");
+  }
+  $("btnClearHistory").addEventListener("click", ()=>{ history = []; renderHistory(); showToast("History cleared."); });
+
+  $("btnExportBackup").addEventListener("click", ()=>{
+    const payload = JSON.stringify({
+      exportedAt: new Date().toISOString(),
+      history,
+      templates: savedTemplates.map(t => ({ name:t.name, template: serializeRecords(t.template), custom: serializeRecords(t.custom) }))
+    }, null, 2);
+    const blob = new Blob([payload], {type:"application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "tagio-backup-" + Date.now() + ".json";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=> URL.revokeObjectURL(url), 3000);
+    showToast("Backup exported.");
+  });
+
+  $("btnImportBackup").addEventListener("click", ()=> $("fileImport").click());
+  $("fileImport").addEventListener("change", (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      try{
+        const parsed = JSON.parse(reader.result);
+        if(Array.isArray(parsed.history)) history = [...parsed.history, ...history];
+        if(Array.isArray(parsed.templates)){
+          parsed.templates.forEach(t=>{
+            savedTemplates.push({ name: t.name || "Imported template", template: deserializeRecords(t.template||[]), custom: deserializeRecords(t.custom||[]) });
+          });
+        }
+        renderHistory(); renderSavedTemplates();
+        showToast("Backup imported.");
+      }catch(err){ showToast("Import failed — file isn't a valid Tag/IO backup.", true); }
+      e.target.value = "";
+    };
+    reader.onerror = ()=> showToast("Couldn't read that file.", true);
+    reader.readAsText(file);
+  });
+
+  // ==================== BYTE / RECORD UTILITIES ====================
+  function byteLenOf(data){
+    if(typeof data === "string") return utf8Bytes(data).length;
+    if(data instanceof Uint8Array) return data.length;
+    if(data instanceof ArrayBuffer) return data.byteLength;
+    return 0;
+  }
+  function toBytes(data){
+    if(typeof data === "string") return utf8Bytes(data);
+    if(data instanceof Uint8Array) return data;
+    if(data instanceof ArrayBuffer) return new Uint8Array(data);
+    return new Uint8Array();
+  }
+  function bytesEqual(a,b){
+    if(a.length !== b.length) return false;
+    for(let i=0;i<a.length;i++) if(a[i]!==b[i]) return false;
+    return true;
+  }
+  function estimateRecordBytes(rec){
+    const payload = byteLenOf(rec.data);
+    if(rec.recordType === "text") return payload + 7;
+    if(rec.recordType === "url") return payload + 5;
+    return payload + 4 + (rec.mediaType ? rec.mediaType.length : 8);
+  }
+  function serializeRecords(recs){
+    return (recs||[]).map(r => ({ ...r, data: (r.data instanceof Uint8Array) ? {__bytes: Array.from(r.data)} : r.data }));
+  }
+  function deserializeRecords(recs){
+    return (recs||[]).map(r => ({ ...r, data: (r.data && r.data.__bytes) ? new Uint8Array(r.data.__bytes) : r.data }));
+  }
+
+  // ==================== QR MODAL ====================
+  function openQR(text, caption){
+    if(typeof QRCode === "undefined"){
+      showToast("QR library unavailable — check your internet connection.", true);
+      return;
+    }
+    const box = $("qrBox");
+    box.innerHTML = "";
+    try{
+      new QRCode(box, { text: String(text), width:200, height:200, colorDark:"#0a0d0f", colorLight:"#ffffff" });
+    }catch(e){
+      showToast("Couldn't generate a QR code for this content.", true);
+      return;
+    }
+    $("qrCaption").textContent = caption || "";
+    $("qrOverlay").classList.add("show");
+  }
+  $("qrClose").addEventListener("click", ()=> $("qrOverlay").classList.remove("show"));
+  $("qrOverlay").addEventListener("click", (e)=>{ if(e.target.id === "qrOverlay") $("qrOverlay").classList.remove("show"); });
+
+  // ==================== WRITE: custom record builder ====================
   const writeRecordList = $("writeRecordList");
 
-  function addRecordRow(type){
+  function fieldsHtmlFor(type){
+    if(type === "text") return `<div class="field"><label>Text</label><textarea placeholder="Enter plain text…" data-role="value"></textarea></div>`;
+    if(type === "url") return `<div class="field"><label>URL</label><input type="url" placeholder="https://example.com" data-role="value"></div>`;
+    return `
+      <div class="field"><label>MIME type</label><input type="text" placeholder="text/plain" value="text/plain" data-role="mime"></div>
+      <div class="field"><label>Content</label><textarea placeholder="Raw content…" data-role="value"></textarea></div>`;
+  }
+
+  function addRecordRow(type, prefill){
     const id = "rec_" + (++recordSeq);
     const row = document.createElement("div");
     row.className = "record-row";
     row.id = id;
-
-    let fields = "";
-    if(type === "text"){
-      fields = `
-        <div class="field">
-          <label>Text</label>
-          <textarea placeholder="Enter plain text…" data-role="value"></textarea>
-        </div>`;
-    } else if(type === "url"){
-      fields = `
-        <div class="field">
-          <label>URL</label>
-          <input type="url" placeholder="https://example.com" data-role="value">
-        </div>`;
-    } else {
-      fields = `
-        <div class="field">
-          <label>MIME type</label>
-          <input type="text" placeholder="text/plain" value="text/plain" data-role="mime">
-        </div>
-        <div class="field">
-          <label>Content</label>
-          <textarea placeholder="Raw content…" data-role="value"></textarea>
-        </div>`;
-    }
-
     row.innerHTML = `
       <div class="rr-body">
         <div class="field">
@@ -537,57 +749,437 @@
             <option value="mime" ${type==="mime"?"selected":""}>Custom (MIME)</option>
           </select>
         </div>
-        <div class="field-slot">${fields}</div>
+        <div class="field-slot">${fieldsHtmlFor(type)}</div>
       </div>
       <button class="rr-remove" type="button" title="Remove record">×</button>
     `;
-
     writeRecordList.appendChild(row);
 
+    if(prefill){
+      const valEl = row.querySelector('[data-role="value"]');
+      if(valEl) valEl.value = prefill.value || "";
+      const mimeEl = row.querySelector('[data-role="mime"]');
+      if(mimeEl && prefill.mime) mimeEl.value = prefill.mime;
+    }
+
     row.querySelector('[data-role="type"]').addEventListener("change", (e)=>{
-      const newRow = document.createElement("div");
-      row.remove();
-      addRecordRowAt(e.target.value, id);
+      row.querySelector(".field-slot").innerHTML = fieldsHtmlFor(e.target.value);
+      updateCapacityMeter();
     });
-
-    row.querySelector(".rr-remove").addEventListener("click", ()=> row.remove());
+    row.querySelector(".rr-remove").addEventListener("click", ()=>{ row.remove(); updateCapacityMeter(); });
+    updateCapacityMeter();
   }
 
-  function addRecordRowAt(type, id){
-    addRecordRow(type);
-    // simplest approach: just append fresh (order shifts to bottom) — acceptable for a lightweight tool
-  }
-
+  writeRecordList.addEventListener("input", updateCapacityMeter);
   $("btnAddRecord").addEventListener("click", ()=> addRecordRow("text"));
-  addRecordRow("text"); // seed with one record
+  addRecordRow("text"); // seed with one empty record
 
-  function collectRecords(){
+  function collectCustomRecords(){
     const rows = Array.from(writeRecordList.querySelectorAll(".record-row"));
-    if(rows.length === 0) throw new Error("Add at least one record before writing.");
-    return rows.map(row=>{
+    const out = [];
+    for(const row of rows){
       const type = row.querySelector('[data-role="type"]').value;
-      const value = row.querySelector('[data-role="value"]').value.trim();
-      if(!value) throw new Error("Every record needs content — fill in or remove empty ones.");
-      if(type === "text"){
-        return { recordType:"text", data: value };
-      }
+      const valueEl = row.querySelector('[data-role="value"]');
+      const value = valueEl ? valueEl.value.trim() : "";
+      if(!value) continue; // silently skip empty rows — template-only writes should work fine
+      if(type === "text"){ out.push({ recordType:"text", data:value }); continue; }
       if(type === "url"){
-        try{ new URL(value); }catch(e){ throw new Error("That URL doesn't look valid — include https://"); }
-        return { recordType:"url", data: value };
+        try{ new URL(value); }catch(e){ throw new Error("One of your URLs doesn't look valid — include https://"); }
+        out.push({ recordType:"url", data:value }); continue;
       }
-      const mime = row.querySelector('[data-role="mime"]').value.trim() || "text/plain";
-      return { recordType:"mime", mediaType: mime, data: value };
+      const mimeEl = row.querySelector('[data-role="mime"]');
+      const mime = (mimeEl && mimeEl.value.trim()) || "text/plain";
+      out.push({ recordType:"mime", mediaType:mime, data:value });
+    }
+    return out;
+  }
+
+  // ==================== WRITE: quick templates ====================
+  const composer = $("composer");
+  const TAG_LABELS = { wifi:"📶 Wi-Fi", vcard:"👤 Contact", geo:"📍 Location", tel:"☎ Phone", sms:"💬 SMS", email:"✉ Email" };
+
+  document.querySelectorAll("[data-tpl]").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      document.querySelectorAll("[data-tpl]").forEach(b=>b.classList.remove("active"));
+      btn.classList.add("active");
+      renderComposer(btn.dataset.tpl);
     });
+  });
+
+  function renderComposer(type){
+    composer.style.display = "flex";
+    if(type === "wifi"){
+      composer.innerHTML = `
+        <div class="field"><label>Network Name (SSID)</label><input type="text" id="c_ssid" placeholder="MyHomeWiFi"></div>
+        <div class="field"><label>Security</label>
+          <select id="c_sec"><option value="wpa">WPA/WPA2-Personal</option><option value="open">Open (no password)</option></select>
+        </div>
+        <div class="field" id="c_pass_wrap"><label>Password</label><input type="text" id="c_pass" placeholder="Network password"></div>
+        <button class="btn btn-ghost" id="c_add" type="button">+ Add Wi-Fi Record</button>
+        <div class="notice">Encodes a standard Wi-Fi Simple Config credential. Support for tap-to-join varies by phone and Android version — test after writing.</div>
+      `;
+      $("c_sec").addEventListener("change", (e)=>{ $("c_pass_wrap").style.display = e.target.value === "open" ? "none" : "flex"; });
+      $("c_add").addEventListener("click", ()=>{
+        const ssid = $("c_ssid").value.trim();
+        const sec = $("c_sec").value;
+        const pass = $("c_pass").value;
+        if(!ssid){ showToast("Enter a network name.", true); return; }
+        if(sec !== "open" && !pass){ showToast("Enter a password, or switch to Open.", true); return; }
+        const bytes = buildWifiWscPayload(ssid, pass, sec);
+        const qrText = sec === "open" ? `WIFI:T:nopass;S:${escapeWifiQR(ssid)};;` : `WIFI:T:WPA;S:${escapeWifiQR(ssid)};P:${escapeWifiQR(pass)};;`;
+        pushTemplateRecord({ label:`Wi-Fi: ${ssid}`, sub:"application/vnd.wfa.wsc", recordType:"mime", mediaType:"application/vnd.wfa.wsc", data:bytes, qrText });
+        $("c_ssid").value=""; $("c_pass").value="";
+      });
+    } else if(type === "vcard"){
+      composer.innerHTML = `
+        <div class="field"><label>Full Name</label><input type="text" id="c_name" placeholder="Jane Doe"></div>
+        <div class="field-grid">
+          <div class="field"><label>Phone</label><input type="tel" id="c_phone" placeholder="+1 555 0100"></div>
+          <div class="field"><label>Email</label><input type="email" id="c_email" placeholder="jane@example.com"></div>
+        </div>
+        <div class="field"><label>Organization (optional)</label><input type="text" id="c_org" placeholder="Company"></div>
+        <button class="btn btn-ghost" id="c_add" type="button">+ Add Contact Record</button>
+      `;
+      $("c_add").addEventListener("click", ()=>{
+        const name = $("c_name").value.trim(), phone = $("c_phone").value.trim(), email = $("c_email").value.trim(), org = $("c_org").value.trim();
+        if(!name){ showToast("Enter a name.", true); return; }
+        const vcard = ["BEGIN:VCARD","VERSION:3.0",`N:${name}`,`FN:${name}`, org?`ORG:${org}`:"", phone?`TEL:${phone}`:"", email?`EMAIL:${email}`:"","END:VCARD"].filter(Boolean).join("\n");
+        pushTemplateRecord({ label:`Contact: ${name}`, sub:"text/vcard", recordType:"mime", mediaType:"text/vcard", data:vcard, qrText:vcard });
+        $("c_name").value=""; $("c_phone").value=""; $("c_email").value=""; $("c_org").value="";
+      });
+    } else if(type === "geo"){
+      composer.innerHTML = `
+        <div class="field-grid">
+          <div class="field"><label>Latitude</label><input type="number" step="any" id="c_lat" placeholder="37.7749"></div>
+          <div class="field"><label>Longitude</label><input type="number" step="any" id="c_lon" placeholder="-122.4194"></div>
+        </div>
+        <button class="btn btn-ghost" id="c_add" type="button">+ Add Location Record</button>
+      `;
+      $("c_add").addEventListener("click", ()=>{
+        const lat = $("c_lat").value.trim(), lon = $("c_lon").value.trim();
+        if(!lat || !lon){ showToast("Enter both latitude and longitude.", true); return; }
+        const uri = `geo:${lat},${lon}`;
+        pushTemplateRecord({ label:`Location: ${lat}, ${lon}`, sub:"geo URI", recordType:"url", data:uri, qrText:uri });
+        $("c_lat").value=""; $("c_lon").value="";
+      });
+    } else if(type === "tel"){
+      composer.innerHTML = `
+        <div class="field"><label>Phone Number</label><input type="tel" id="c_tel" placeholder="+1 555 0100"></div>
+        <button class="btn btn-ghost" id="c_add" type="button">+ Add Phone Record</button>
+      `;
+      $("c_add").addEventListener("click", ()=>{
+        const num = $("c_tel").value.trim();
+        if(!num){ showToast("Enter a phone number.", true); return; }
+        const uri = `tel:${num.replace(/\s+/g,"")}`;
+        pushTemplateRecord({ label:`Phone: ${num}`, sub:"tel URI", recordType:"url", data:uri, qrText:uri });
+        $("c_tel").value="";
+      });
+    } else if(type === "sms"){
+      composer.innerHTML = `
+        <div class="field"><label>Phone Number</label><input type="tel" id="c_sms_num" placeholder="+1 555 0100"></div>
+        <div class="field"><label>Message (optional)</label><textarea id="c_sms_body" placeholder="Pre-filled message…"></textarea></div>
+        <button class="btn btn-ghost" id="c_add" type="button">+ Add SMS Record</button>
+      `;
+      $("c_add").addEventListener("click", ()=>{
+        const num = $("c_sms_num").value.trim(), body = $("c_sms_body").value.trim();
+        if(!num){ showToast("Enter a phone number.", true); return; }
+        const uri = `sms:${num.replace(/\s+/g,"")}${body?"?body="+encodeURIComponent(body):""}`;
+        pushTemplateRecord({ label:`SMS: ${num}`, sub:"sms URI", recordType:"url", data:uri, qrText:uri });
+        $("c_sms_num").value=""; $("c_sms_body").value="";
+      });
+    } else if(type === "email"){
+      composer.innerHTML = `
+        <div class="field"><label>To</label><input type="email" id="c_mail_to" placeholder="someone@example.com"></div>
+        <div class="field"><label>Subject (optional)</label><input type="text" id="c_mail_sub" placeholder="Subject"></div>
+        <div class="field"><label>Body (optional)</label><textarea id="c_mail_body" placeholder="Message…"></textarea></div>
+        <button class="btn btn-ghost" id="c_add" type="button">+ Add Email Record</button>
+      `;
+      $("c_add").addEventListener("click", ()=>{
+        const to = $("c_mail_to").value.trim(), sub = $("c_mail_sub").value.trim(), body = $("c_mail_body").value.trim();
+        if(!to){ showToast("Enter a recipient address.", true); return; }
+        const params = [];
+        if(sub) params.push("subject="+encodeURIComponent(sub));
+        if(body) params.push("body="+encodeURIComponent(body));
+        const uri = `mailto:${to}${params.length?"?"+params.join("&"):""}`;
+        pushTemplateRecord({ label:`Email: ${to}`, sub:"mailto URI", recordType:"url", data:uri, qrText:uri });
+        $("c_mail_to").value=""; $("c_mail_sub").value=""; $("c_mail_body").value="";
+      });
+    }
+  }
+
+  function escapeWifiQR(s){ return String(s).replace(/([\\;,:"])/g, "\\$1"); }
+
+  // Wi-Fi Simple Config (WSC) TLV payload builder
+  function u16be(n){ return [(n>>8)&0xff, n&0xff]; }
+  function tlv(id, valueBytes){ return [...u16be(id), ...u16be(valueBytes.length), ...valueBytes]; }
+  function strBytes(s){ return Array.from(utf8Bytes(s)); }
+  function buildWifiWscPayload(ssid, password, security){
+    const AUTH = security === "open" ? 0x0001 : 0x0020; // Open : WPA2-Personal
+    const ENC  = security === "open" ? 0x0001 : 0x0008; // None : AES
+    const ssidBytes = strBytes(ssid);
+    const keyBytes = security === "open" ? [] : strBytes(password);
+    const mac = [0xff,0xff,0xff,0xff,0xff,0xff];
+    const credentialInner = [
+      ...tlv(0x1045, ssidBytes),
+      ...tlv(0x1003, u16be(AUTH)),
+      ...tlv(0x100F, u16be(ENC)),
+      ...tlv(0x1027, keyBytes),
+      ...tlv(0x1020, mac)
+    ];
+    const versionAttr = tlv(0x104A, [0x10]);
+    const credentialAttr = tlv(0x100E, credentialInner);
+    return new Uint8Array([...versionAttr, ...credentialAttr]);
+  }
+
+  // ---- template record list management ----
+  function pushTemplateRecord(rec){
+    rec.id = "tpl_" + Date.now() + "_" + Math.random().toString(36).slice(2,7);
+    pendingTemplateRecords.push(rec);
+    renderTemplateRecords();
+    updateCapacityMeter();
+    showToast("Added to Template Records.");
+  }
+
+  function renderTemplateRecords(){
+    const card = $("templateRecordsCard");
+    const list = $("templateRecordsList");
+    if(pendingTemplateRecords.length === 0){ card.style.display = "none"; list.innerHTML = ""; return; }
+    card.style.display = "block";
+    list.innerHTML = pendingTemplateRecords.map(r => `
+      <div class="tpl-item">
+        <div class="tt">
+          <div>
+            <div class="tlabel">${escapeHtml(r.label)}</div>
+            <div class="tsub">${escapeHtml(r.sub || r.recordType)}</div>
+          </div>
+          <div class="tpl-actions">
+            <button data-qr="${r.id}" title="Show QR">▦</button>
+            <button data-del="${r.id}" class="danger" title="Remove">×</button>
+          </div>
+        </div>
+      </div>
+    `).join("");
+    list.querySelectorAll("[data-del]").forEach(b=> b.addEventListener("click", ()=>{
+      pendingTemplateRecords = pendingTemplateRecords.filter(r => r.id !== b.getAttribute("data-del"));
+      renderTemplateRecords(); updateCapacityMeter();
+    }));
+    list.querySelectorAll("[data-qr]").forEach(b=> b.addEventListener("click", ()=>{
+      const rec = pendingTemplateRecords.find(r => r.id === b.getAttribute("data-qr"));
+      if(!rec) return;
+      openQR(rec.qrText || (typeof rec.data === "string" ? rec.data : "[binary data]"), rec.label);
+    }));
+  }
+
+  // ---- clone last read tag ----
+  $("btnCloneLast").addEventListener("click", ()=>{
+    if(!lastReadRaw || lastReadRaw.length === 0){ showToast("Read a tag first, then clone it.", true); return; }
+    let added = 0;
+    lastReadRaw.forEach(r=>{
+      if(r.recordType === "empty") return;
+      const bytes = r.buffer ? new Uint8Array(r.buffer) : new Uint8Array();
+      let recordType = r.recordType, mediaType = r.mediaType;
+      if(!["text","url","mime","absolute-url"].includes(recordType)){
+        // best-effort fallback for exotic record types (smart-poster, unknown, external, …)
+        recordType = "mime"; mediaType = mediaType || "application/octet-stream";
+      }
+      pendingTemplateRecords.push({
+        id: "clone_" + Date.now() + "_" + Math.random().toString(36).slice(2,7),
+        label: "Clone: " + (r.recordType) + (mediaType ? " ("+mediaType+")" : ""),
+        sub: "cloned from last read",
+        recordType, mediaType, data: bytes,
+        qrText: (recordType === "text" || recordType === "url") ? new TextDecoder().decode(bytes) : "[binary cloned payload]"
+      });
+      added++;
+    });
+    renderTemplateRecords(); updateCapacityMeter();
+    if(added > 0) showToast(`Cloned ${added} record(s) — ready to write to a new tag.`);
+    else showToast("Nothing clonable was found on the last read tag.", true);
+  });
+
+  // ==================== CAPACITY METER ====================
+  const TAG_PRESETS = { ntag213:144, ntag215:504, ntag216:888, mifare1k:716, ultralight:46 };
+  $("tagPreset").addEventListener("change", (e)=>{
+    $("customCapWrap").style.display = e.target.value === "custom" ? "flex" : "none";
+    updateCapacityMeter();
+  });
+  $("customCapBytes").addEventListener("input", updateCapacityMeter);
+
+  function currentCapacityBytes(){
+    const preset = $("tagPreset").value;
+    if(preset === "custom") return Math.max(1, Number($("customCapBytes").value) || 1);
+    return TAG_PRESETS[preset];
+  }
+
+  function updateCapacityMeter(){
+    let custom = [];
+    try{ custom = collectCustomRecords(); }catch(e){ custom = []; }
+    const all = [...pendingTemplateRecords.map(r=>({recordType:r.recordType, mediaType:r.mediaType, data:r.data})), ...custom];
+    const used = all.reduce((sum, r) => sum + estimateRecordBytes(r), 0);
+    const cap = currentCapacityBytes();
+    const pct = Math.min(999, Math.round((used / cap) * 100));
+    const fill = $("capFill");
+    fill.style.width = Math.min(100, pct) + "%";
+    fill.classList.remove("warn","over");
+    if(pct > 100) fill.classList.add("over");
+    else if(pct >= 80) fill.classList.add("warn");
+    $("capUsed").textContent = `${used} B used`;
+    $("capPct").textContent = `${pct}% of ${cap} B`;
+  }
+
+  // ==================== SAVE / LOAD TEMPLATES ====================
+  $("btnSaveTemplate").addEventListener("click", ()=>{
+    let custom;
+    try{ custom = collectCustomRecords(); }catch(e){ showToast(e.message, true); return; }
+    if(pendingTemplateRecords.length === 0 && custom.length === 0){ showToast("Nothing to save yet — add some records first.", true); return; }
+    const name = prompt("Name this template:", "My Template");
+    if(!name) return;
+    savedTemplates.push({
+      name,
+      template: pendingTemplateRecords.map(r => ({ label:r.label, sub:r.sub, recordType:r.recordType, mediaType:r.mediaType, data:r.data, qrText:r.qrText })),
+      custom
+    });
+    renderSavedTemplates();
+    showToast(`Saved template "${name}".`);
+  });
+
+  function renderSavedTemplates(){
+    const card = $("savedTemplatesCard"), list = $("savedTemplatesList");
+    if(savedTemplates.length === 0){ card.style.display = "none"; list.innerHTML=""; return; }
+    card.style.display = "block";
+    list.innerHTML = savedTemplates.map((t,i) => `
+      <div class="tpl-item">
+        <div class="tt">
+          <div><div class="tlabel">${escapeHtml(t.name)}</div><div class="tsub">${t.template.length + t.custom.length} record(s)</div></div>
+          <div class="tpl-actions">
+            <button data-load="${i}" title="Load">↩</button>
+            <button data-deltpl="${i}" class="danger" title="Delete">×</button>
+          </div>
+        </div>
+      </div>
+    `).join("");
+    list.querySelectorAll("[data-load]").forEach(b=> b.addEventListener("click", ()=>{
+      const t = savedTemplates[Number(b.getAttribute("data-load"))];
+      loadTemplate(t);
+    }));
+    list.querySelectorAll("[data-deltpl]").forEach(b=> b.addEventListener("click", ()=>{
+      savedTemplates.splice(Number(b.getAttribute("data-deltpl")), 1);
+      renderSavedTemplates();
+    }));
+  }
+
+  function loadTemplate(t){
+    pendingTemplateRecords = t.template.map(r => ({ ...r, id: "tpl_" + Date.now() + "_" + Math.random().toString(36).slice(2,7) }));
+    renderTemplateRecords();
+    writeRecordList.innerHTML = "";
+    if(t.custom.length === 0){ addRecordRow("text"); }
+    else {
+      t.custom.forEach(r=>{
+        const type = r.recordType === "mime" ? "mime" : r.recordType;
+        addRecordRow(type, { value: typeof r.data === "string" ? r.data : "", mime: r.mediaType });
+      });
+    }
+    updateCapacityMeter();
+    showToast(`Loaded template "${t.name}".`);
+  }
+
+  // ==================== WRITE ====================
+  const writeStage = $("writeStage"), writeIcon = $("writeIcon"), writeLabel = $("writeLabel");
+
+  function gatherAllRecords(){
+    const custom = collectCustomRecords();
+    const tpl = pendingTemplateRecords.map(r => ({ recordType:r.recordType, mediaType:r.mediaType, data:r.data }));
+    const all = [...tpl, ...custom];
+    if(all.length === 0) throw new Error("Add at least one record — use a Quick Template or Custom Record.");
+    return all;
+  }
+
+  function toNDEFInit(records){
+    return records.map(r=>{
+      const item = { recordType: r.recordType, data: r.data };
+      if(r.mediaType) item.mediaType = r.mediaType;
+      return item;
+    });
+  }
+
+  function compareRecords(written, readRecords){
+    if(written.length !== readRecords.length) return false;
+    for(let i=0;i<written.length;i++){
+      const w = written[i], r = readRecords[i];
+      if(w.recordType !== r.recordType) return false;
+      if(w.recordType === "text"){
+        const rText = new TextDecoder(r.encoding || "utf-8").decode(r.data);
+        if(rText.trim() !== String(w.data).trim()) return false;
+      } else if(w.recordType === "url" || w.recordType === "absolute-url"){
+        const rText = new TextDecoder().decode(r.data);
+        if(rText.trim() !== String(w.data).trim()) return false;
+      } else {
+        const wBytes = toBytes(w.data);
+        const rBytes = r.data ? new Uint8Array(r.data.buffer, r.data.byteOffset, r.data.byteLength) : new Uint8Array();
+        if(!bytesEqual(wBytes, rBytes)) return false;
+      }
+    }
+    return true;
+  }
+
+  async function verifyAfterWrite(writtenRecords){
+    if(scanning){ showToast("Skipping auto-verify — a scan is already running on the Read tab.", true); return; }
+    verifying = true;
+    writeStage.classList.add("writing");
+    writeIcon.textContent = "🔍";
+    writeLabel.innerHTML = "Verifying — hold the tag in place…";
+
+    const vController = new AbortController();
+    const timeoutId = setTimeout(()=>{ vController.abort(); }, 6000);
+
+    try{
+      await ndef.scan({ signal: vController.signal });
+      ndef.onreading = (ev)=>{
+        clearTimeout(timeoutId);
+        const ok = compareRecords(writtenRecords, ev.message.records);
+        writeIcon.textContent = ok ? "✅" : "⚠️";
+        writeLabel.innerHTML = ok ? "Verified — data matches" : "Written, but verification did not match";
+        if(ok) feedbackSuccess(); else feedbackError();
+        showToast(ok ? "Write verified against the tag." : "Written, but the re-read didn't match exactly.", !ok);
+        vController.abort();
+        finishVerify();
+      };
+      vController.signal.addEventListener("abort", ()=>{
+        if(verifying){
+          writeIcon.textContent = "⏱";
+          writeLabel.innerHTML = "Verify timed out — read manually to confirm";
+          showToast("Couldn't auto-verify in time. Use the Read tab to double-check.", true);
+          finishVerify();
+        }
+      });
+    }catch(err){
+      clearTimeout(timeoutId);
+      writeIcon.textContent = "⚠️";
+      writeLabel.innerHTML = "Couldn't start verification scan";
+      showToast(explainError(err), true);
+      finishVerify();
+    }
+  }
+
+  function finishVerify(){
+    verifying = false;
+    setTimeout(()=>{
+      writeStage.classList.remove("writing");
+      writeIcon.textContent = "✎";
+      writeLabel.innerHTML = "Build your message below,<br>then tap <b>Write to Tag</b>";
+    }, 2000);
   }
 
   $("btnWrite").addEventListener("click", async ()=>{
     if(!guardSupport()) return;
     let records;
-    try{
-      records = collectRecords();
-    }catch(err){
-      showToast(err.message, true);
-      return;
+    try{ records = gatherAllRecords(); }
+    catch(err){ showToast(err.message, true); return; }
+
+    const used = records.reduce((sum, r) => sum + estimateRecordBytes(r), 0);
+    const cap = currentCapacityBytes();
+    if(used > cap){
+      const proceed = confirm(`Estimated size (${used} B) exceeds the selected tag capacity (${cap} B). Write anyway?`);
+      if(!proceed) return;
     }
 
     writeStage.classList.add("writing");
@@ -597,21 +1189,33 @@
 
     try{
       const controller = new AbortController();
-      await ndef.write({ records }, { signal: controller.signal, overwrite: $("chkOverwrite").checked });
+      await ndef.write({ records: toNDEFInit(records) }, { signal: controller.signal, overwrite: $("chkOverwrite").checked });
+      feedbackSuccess();
       writeIcon.textContent = "✅";
       writeLabel.innerHTML = "<b>Write successful</b>";
       showToast("Data written to tag.");
       addHistory({ icon:"📤", text:`Wrote ${records.length} record(s) to tag`, time: fmtTime(new Date()) });
+
+      if($("chkVerify").checked){
+        setTimeout(()=> verifyAfterWrite(records), 400);
+      } else {
+        setTimeout(()=>{
+          writeStage.classList.remove("writing");
+          writeIcon.textContent = "✎";
+          writeLabel.innerHTML = "Build your message below,<br>then tap <b>Write to Tag</b>";
+          setStatus("ready", true);
+        }, 1600);
+      }
     }catch(err){
+      feedbackError();
       writeIcon.textContent = "⚠️";
       writeLabel.innerHTML = "Write failed";
       showToast(explainError(err), true);
-    }finally{
+      setStatus("ready", true);
       setTimeout(()=>{
         writeStage.classList.remove("writing");
         writeIcon.textContent = "✎";
         writeLabel.innerHTML = "Build your message below,<br>then tap <b>Write to Tag</b>";
-        setStatus("ready", true);
       }, 1600);
     }
   });
@@ -627,11 +1231,13 @@
 
     try{
       await ndef.makeReadOnly();
+      feedbackSuccess();
       showToast("Tag is now permanently read-only.");
       addHistory({ icon:"🔒", text:"Made tag read-only", time: fmtTime(new Date()) });
       writeIcon.textContent = "✅";
       writeLabel.innerHTML = "Tag locked";
     }catch(err){
+      feedbackError();
       showToast(explainError(err), true);
       writeIcon.textContent = "⚠️";
       writeLabel.innerHTML = "Lock failed";
@@ -644,12 +1250,8 @@
     }
   });
 
-  // ---------------- HISTORY ----------------
-  $("btnClearHistory").addEventListener("click", ()=>{
-    history = [];
-    renderHistory();
-    showToast("History cleared.");
-  });
+  // initial capacity render
+  updateCapacityMeter();
 
 })();
 </script>
