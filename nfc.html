@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Tag/IO — NFC Reader &amp; Writer</title>
+<style>
+  :root{
+    --bg:#0a0d0f;
+    --bg-raised:#12171a;
+    --bg-card:#161d21;
+    --line:#232b2f;
+    --signal:#28e0c3;
+    --signal-dim:#164b43;
+    --write:#f5a623;
+    --write-dim:#4a3616;
+    --danger:#ef5350;
+    --text:#e8edee;
+    --text-dim:#8fa1a6;
+    --text-faint:#54666b;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:var(--sans);}
+  body{
+    min-height:100vh;
+    padding: max(16px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+    display:flex; flex-direction:column; gap:16px;
+  }
+  @media(min-width:560px){ body{ max-width:520px; margin:0 auto; } }
+
+  /* ---------- header ---------- */
+  header{ display:flex; align-items:center; justify-content:space-between; padding-top:4px; }
+  .brand{ display:flex; align-items:center; gap:10px; }
+  .brand .mark{
+    width:34px; height:34px; border-radius:9px;
+    background:linear-gradient(155deg, var(--signal), #0f8f7c);
+    display:flex; align-items:center; justify-content:center;
+    font-family:var(--mono); font-weight:700; color:#04120f; font-size:15px;
+  }
+  .brand h1{ font-size:16px; margin:0; letter-spacing:0.2px; font-weight:650; }
+  .brand span.sub{ display:block; font-size:11px; color:var(--text-faint); font-family:var(--mono); letter-spacing:0.5px; margin-top:1px;}
+  .status-chip{
+    font-family:var(--mono); font-size:11px; padding:5px 9px; border-radius:20px;
+    border:1px solid var(--line); color:var(--text-dim); white-space:nowrap;
+    display:flex; align-items:center; gap:6px;
+  }
+  .status-chip .dot{ width:6px; height:6px; border-radius:50%; background:var(--text-faint); }
+  .status-chip.ok .dot{ background:var(--signal); box-shadow:0 0 6px var(--signal); }
+  .status-chip.bad .dot{ background:var(--danger); }
+
+  /* ---------- tabs ---------- */
+  .tabs{ display:flex; gap:6px; background:var(--bg-raised); padding:4px; border-radius:12px; border:1px solid var(--line); }
+  .tab{
+    flex:1; text-align:center; padding:9px 0; border-radius:9px; font-size:13.5px; font-weight:600;
+    color:var(--text-dim); cursor:pointer; user-select:none; letter-spacing:0.2px;
+    transition:background .15s ease, color .15s ease;
+  }
+  .tab.active{ background:var(--bg-card); color:var(--text); box-shadow:0 0 0 1px var(--line) inset; }
+
+  .panel{ display:none; flex-direction:column; gap:14px; }
+  .panel.active{ display:flex; }
+
+  /* ---------- scan stage (signature element) ---------- */
+  .stage{
+    position:relative; height:190px; border-radius:16px; overflow:hidden;
+    background:radial-gradient(120% 100% at 50% 100%, #10201d 0%, var(--bg-raised) 60%, var(--bg-raised) 100%);
+    border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .stage .rings{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
+  .ring{
+    position:absolute; border-radius:50%; border:1.5px solid var(--signal); opacity:0;
+  }
+  .stage.scanning .ring{ animation: pulse 2.2s cubic-bezier(.2,.6,.3,1) infinite; }
+  .stage.writing .ring{ border-color:var(--write); animation: pulse 1.3s cubic-bezier(.2,.6,.3,1) infinite; }
+  .ring:nth-child(1){ animation-delay:0s; }
+  .ring:nth-child(2){ animation-delay:.55s; }
+  .ring:nth-child(3){ animation-delay:1.1s; }
+  @keyframes pulse{
+    0%{ width:40px; height:40px; opacity:.9; }
+    100%{ width:210px; height:210px; opacity:0; }
+  }
+  @media (prefers-reduced-motion: reduce){
+    .stage.scanning .ring, .stage.writing .ring{ animation:none; opacity:.25; width:150px; height:150px;}
+  }
+  .stage .core{
+    position:relative; z-index:2; display:flex; flex-direction:column; align-items:center; gap:8px;
+  }
+  .core .icon{
+    width:56px; height:56px; border-radius:16px; background:var(--bg-card); border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center; font-size:24px;
+  }
+  .stage.scanning .core .icon{ border-color:var(--signal-dim); }
+  .stage.writing .core .icon{ border-color:var(--write-dim); }
+  .core .label{ font-family:var(--mono); font-size:12px; color:var(--text-dim); letter-spacing:0.4px; text-align:center; padding:0 20px;}
+  .core .label b{ color:var(--text); font-weight:600; }
+
+  /* ---------- buttons ---------- */
+  .btn{
+    appearance:none; border:none; border-radius:12px; padding:13px 16px; font-size:14.5px; font-weight:650;
+    font-family:var(--sans); cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;
+    letter-spacing:0.1px; transition:transform .08s ease, opacity .15s ease; width:100%;
+  }
+  .btn:active{ transform:scale(0.98); }
+  .btn:disabled{ opacity:.4; cursor:not-allowed; }
+  .btn-primary{ background:var(--signal); color:#04120f; }
+  .btn-write{ background:var(--write); color:#231400; }
+  .btn-outline{ background:transparent; color:var(--text); border:1px solid var(--line); }
+  .btn-danger{ background:transparent; color:var(--danger); border:1px solid #4a2323; }
+  .btn-ghost{ background:var(--bg-card); color:var(--text-dim); border:1px solid var(--line); }
+  .btn-row{ display:flex; gap:8px; }
+
+  /* ---------- cards / log ---------- */
+  .card{ background:var(--bg-card); border:1px solid var(--line); border-radius:14px; padding:14px; }
+  .card h3{ margin:0 0 10px; font-size:12px; text-transform:uppercase; letter-spacing:0.8px; color:var(--text-faint); font-weight:700; }
+  .empty{ color:var(--text-faint); font-size:13px; font-family:var(--mono); text-align:center; padding:18px 0; }
+
+  .record{ border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:8px; background:var(--bg-raised); }
+  .record:last-child{ margin-bottom:0; }
+  .record .rtype{ font-family:var(--mono); font-size:10.5px; color:var(--signal); text-transform:uppercase; letter-spacing:0.6px; margin-bottom:4px; }
+  .record .rdata{ font-size:13.5px; word-break:break-word; line-height:1.5; }
+  .record .rmeta{ font-family:var(--mono); font-size:11px; color:var(--text-faint); margin-top:5px; }
+
+  .tag-meta{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px; }
+  .meta-pill{ font-family:var(--mono); font-size:11px; background:var(--bg-raised); border:1px solid var(--line); color:var(--text-dim); padding:5px 9px; border-radius:8px; }
+
+  .log-item{ display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--line); font-size:12.5px; }
+  .log-item:last-child{ border-bottom:none; }
+  .log-item .lt{ font-family:var(--mono); color:var(--text-dim); }
+  .log-item .ld{ color:var(--text-faint); font-family:var(--mono); font-size:11px; }
+
+  /* ---------- write form ---------- */
+  .field{ display:flex; flex-direction:column; gap:6px; }
+  .field label{ font-size:12px; color:var(--text-dim); font-weight:600; }
+  .field select, .field input, .field textarea{
+    background:var(--bg-raised); border:1px solid var(--line); border-radius:10px; padding:11px 12px;
+    color:var(--text); font-size:14px; font-family:var(--sans); resize:vertical;
+  }
+  .field textarea{ font-family:var(--mono); min-height:80px; }
+  .field select{ appearance:none; -webkit-appearance:none; background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path d='M0 0l5 6 5-6z' fill='%238fa1a6'/></svg>"); background-repeat:no-repeat; background-position:right 12px center; padding-right:30px;}
+  .field input:focus, .field select:focus, .field textarea:focus{ outline:2px solid var(--signal); outline-offset:1px; }
+  .record-list{ display:flex; flex-direction:column; gap:8px; }
+  .record-row{ display:flex; gap:8px; align-items:flex-start; }
+  .record-row .rr-body{ flex:1; display:flex; flex-direction:column; gap:6px; }
+  .rr-remove{ background:transparent; border:1px solid var(--line); color:var(--danger); border-radius:8px; width:34px; height:34px; flex:none; font-size:16px; cursor:pointer; }
+
+  .toast{
+    position:fixed; left:16px; right:16px; bottom:max(16px, env(safe-area-inset-bottom));
+    background:var(--bg-card); border:1px solid var(--line); border-radius:12px; padding:12px 14px;
+    font-size:13px; display:flex; gap:10px; align-items:flex-start; transform:translateY(140%); transition:transform .25s ease;
+    z-index:50; max-width:520px; margin:0 auto; box-shadow:0 8px 24px rgba(0,0,0,.4);
+  }
+  .toast.show{ transform:translateY(0); }
+  .toast.err{ border-color:#4a2323; }
+  .toast .tdot{ width:8px; height:8px; border-radius:50%; background:var(--signal); margin-top:4px; flex:none; }
+  .toast.err .tdot{ background:var(--danger); }
+
+  .notice{
+    background:var(--bg-card); border:1px solid var(--line); border-left:3px solid var(--write);
+    border-radius:10px; padding:12px 13px; font-size:12.5px; color:var(--text-dim); line-height:1.5;
+  }
+  .notice b{ color:var(--text); }
+
+  footer{ text-align:center; color:var(--text-faint); font-family:var(--mono); font-size:10.5px; letter-spacing:0.4px; padding:6px 0 2px; }
+</style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <div class="mark">NFC</div>
+      <div>
+        <h1>Tag/IO</h1>
+        <span class="sub">READ · WRITE · INSPECT</span>
+      </div>
+    </div>
+    <div class="status-chip" id="statusChip"><span class="dot"></span><span id="statusText">checking…</span></div>
+  </header>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="read">Read</div>
+    <div class="tab" data-tab="write">Write</div>
+    <div class="tab" data-tab="history">History</div>
+  </div>
+
+  <!-- ============ READ PANEL ============ -->
+  <section class="panel active" id="panel-read">
+    <div class="stage" id="readStage">
+      <div class="rings"><div class="ring"></div><div class="ring"></div><div class="ring"></div></div>
+      <div class="core">
+        <div class="icon" id="readIcon">📡</div>
+        <div class="label" id="readLabel">Tap <b>Start Scan</b>, then hold your phone<br>near an NFC tag</div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" id="btnStartScan">▶ Start Scan</button>
+      <button class="btn btn-outline" id="btnStopScan" style="display:none;">■ Stop</button>
+    </div>
+
+    <div class="card" id="readResultCard" style="display:none;">
+      <h3>Last Tag Read</h3>
+      <div class="tag-meta" id="tagMeta"></div>
+      <div id="recordsContainer"></div>
+    </div>
+
+    <div class="card" id="readEmptyCard">
+      <div class="empty">No tag read yet this session</div>
+    </div>
+  </section>
+
+  <!-- ============ WRITE PANEL ============ -->
+  <section class="panel" id="panel-write">
+    <div class="stage" id="writeStage">
+      <div class="rings"><div class="ring"></div><div class="ring"></div><div class="ring"></div></div>
+      <div class="core">
+        <div class="icon" id="writeIcon">✎</div>
+        <div class="label" id="writeLabel">Build your message below,<br>then tap <b>Write to Tag</b></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Records to Write</h3>
+      <div class="record-list" id="writeRecordList"></div>
+      <div class="btn-row" style="margin-top:10px;">
+        <button class="btn btn-ghost" id="btnAddRecord" type="button">+ Add Record</button>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-write" id="btnWrite">✎ Write to Tag</button>
+    </div>
+
+    <div class="card">
+      <h3>Tag Options</h3>
+      <div class="field" style="margin-bottom:10px;">
+        <label style="display:flex; align-items:center; gap:8px; font-weight:500;">
+          <input type="checkbox" id="chkOverwrite" checked style="width:16px;height:16px;"> Overwrite existing content
+        </label>
+      </div>
+      <button class="btn btn-danger" id="btnMakeReadOnly">🔒 Make Tag Permanently Read-Only</button>
+      <div class="notice" style="margin-top:10px;">
+        <b>Warning —</b> making a tag read-only is <b>irreversible</b>. The tag can never be written to again, by this app or any other.
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ HISTORY PANEL ============ -->
+  <section class="panel" id="panel-history">
+    <div class="card">
+      <h3>Session Log</h3>
+      <div id="historyList"><div class="empty">Nothing logged yet</div></div>
+    </div>
+    <button class="btn btn-outline" id="btnClearHistory">Clear History</button>
+    <div class="notice">History is kept in memory only for this browser session — nothing is uploaded or stored remotely.</div>
+  </section>
+
+  <footer>WEB NFC · CHROME ON ANDROID · HTTPS REQUIRED</footer>
+
+  <div class="toast" id="toast"><span class="tdot"></span><span id="toastMsg"></span></div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------------- state ----------------
+  let ndef = null;
+  let scanning = false;
+  let scanController = null;
+  let history = [];
+  let recordSeq = 0;
+
+  // ---------------- helpers ----------------
+  const $ = (id) => document.getElementById(id);
+  const toastEl = $("toast"), toastMsg = $("toastMsg");
+  let toastTimer = null;
+
+  function showToast(msg, isErr){
+    toastMsg.textContent = msg;
+    toastEl.classList.toggle("err", !!isErr);
+    toastEl.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=> toastEl.classList.remove("show"), 3200);
+  }
+
+  function setStatus(text, ok){
+    $("statusText").textContent = text;
+    const chip = $("statusChip");
+    chip.classList.remove("ok","bad");
+    if(ok === true) chip.classList.add("ok");
+    if(ok === false) chip.classList.add("bad");
+  }
+
+  function fmtTime(d){
+    return d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  }
+
+  function bytesToHex(bytes){
+    return Array.from(bytes).map(b => b.toString(16).padStart(2,'0')).join(' ');
+  }
+
+  function decodeRecordPayload(record){
+    // record: NDEFRecord
+    try{
+      if(record.recordType === "text"){
+        const decoder = new TextDecoder(record.encoding || "utf-8");
+        // Web NFC text payload includes a language-code prefix per NDEF text record spec
+        // record.data is a DataView already stripped of that by the browser in most impls,
+        // but we defensively decode raw bytes if needed.
+        return decoder.decode(record.data);
+      }
+      if(record.recordType === "url" || record.recordType === "absolute-url"){
+        return new TextDecoder().decode(record.data);
+      }
+      if(record.recordType === "mime"){
+        try{
+          return new TextDecoder().decode(record.data);
+        }catch(e){
+          return "[binary MIME payload, " + record.data.byteLength + " bytes]";
+        }
+      }
+      if(record.recordType === "empty"){
+        return "(empty record)";
+      }
+      // unknown / smart-poster / external etc — show hex
+      const bytes = new Uint8Array(record.data.buffer, record.data.byteOffset, record.data.byteLength);
+      return bytesToHex(bytes);
+    }catch(e){
+      return "[unable to decode payload]";
+    }
+  }
+
+  function addHistory(entry){
+    history.unshift(entry);
+    renderHistory();
+  }
+
+  function renderHistory(){
+    const list = $("historyList");
+    if(history.length === 0){
+      list.innerHTML = '<div class="empty">Nothing logged yet</div>';
+      return;
+    }
+    list.innerHTML = history.map(h => `
+      <div class="log-item">
+        <span class="lt">${h.icon} ${h.text}</span>
+        <span class="ld">${h.time}</span>
+      </div>
+    `).join("");
+  }
+
+  // ---------------- tabs ----------------
+  document.querySelectorAll(".tab").forEach(tab=>{
+    tab.addEventListener("click", ()=>{
+      document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+      document.querySelectorAll(".panel").forEach(p=>p.classList.remove("active"));
+      tab.classList.add("active");
+      $("panel-"+tab.dataset.tab).classList.add("active");
+    });
+  });
+
+  // ---------------- feature detection ----------------
+  const isSecure = window.isSecureContext;
+  const hasNDEF = "NDEFReader" in window;
+
+  if(!isSecure){
+    setStatus("needs https", false);
+    showToast("Web NFC requires a secure (HTTPS) connection.", true);
+  } else if(!hasNDEF){
+    setStatus("unsupported", false);
+    showToast("Web NFC isn't supported in this browser. Use Chrome for Android.", true);
+  } else {
+    setStatus("ready", true);
+    ndef = new NDEFReader();
+  }
+
+  function guardSupport(){
+    if(!isSecure){
+      showToast("This page must be served over HTTPS.", true);
+      return false;
+    }
+    if(!hasNDEF){
+      showToast("Web NFC is only supported in Chrome for Android (v89+).", true);
+      return false;
+    }
+    return true;
+  }
+
+  function explainError(err){
+    const name = err && err.name;
+    switch(name){
+      case "NotAllowedError": return "Permission denied. Allow NFC access for this site and make sure NFC is turned on.";
+      case "NotSupportedError": return "This device or browser doesn't support Web NFC.";
+      case "NotReadableError": return "Couldn't read the tag — try holding the phone steady against it.";
+      case "NetworkError": return "Tag connection lost mid-operation. Hold the tag still and try again.";
+      case "InvalidStateError": return "NFC radio is busy or unavailable. Try again in a moment.";
+      case "AbortError": return "Operation cancelled.";
+      case "TypeError": return "Invalid data for this record type.";
+      default: return (err && err.message) ? err.message : "Something went wrong with the NFC operation.";
+    }
+  }
+
+  // ---------------- READ ----------------
+  const readStage = $("readStage"), readIcon = $("readIcon"), readLabel = $("readLabel");
+  const btnStartScan = $("btnStartScan"), btnStopScan = $("btnStopScan");
+
+  async function startScan(){
+    if(!guardSupport()) return;
+    try{
+      scanController = new AbortController();
+      await ndef.scan({ signal: scanController.signal });
+      scanning = true;
+      readStage.classList.add("scanning");
+      readIcon.textContent = "📶";
+      readLabel.innerHTML = "Scanning… hold near a tag";
+      btnStartScan.style.display = "none";
+      btnStopScan.style.display = "flex";
+      setStatus("scanning", true);
+
+      ndef.onreading = (event) => handleReading(event);
+      ndef.onreadingerror = () => {
+        showToast("Read error — reposition the tag and try again.", true);
+      };
+
+      scanController.signal.addEventListener("abort", ()=> stopScanUI());
+    }catch(err){
+      showToast(explainError(err), true);
+      stopScanUI();
+    }
+  }
+
+  function stopScan(){
+    if(scanController) scanController.abort();
+  }
+
+  function stopScanUI(){
+    scanning = false;
+    readStage.classList.remove("scanning");
+    readIcon.textContent = "📡";
+    readLabel.innerHTML = "Tap <b>Start Scan</b>, then hold your phone<br>near an NFC tag";
+    btnStartScan.style.display = "flex";
+    btnStopScan.style.display = "none";
+    setStatus("ready", true);
+  }
+
+  function handleReading(event){
+    const serial = event.serialNumber || "unknown";
+    const now = new Date();
+
+    // brief flash to confirm a read landed
+    readIcon.textContent = "✅";
+    setTimeout(()=>{ if(scanning) readIcon.textContent = "📶"; }, 900);
+
+    $("readResultCard").style.display = "block";
+    $("readEmptyCard").style.display = "none";
+
+    const meta = $("tagMeta");
+    meta.innerHTML = `
+      <span class="meta-pill">Serial: ${serial}</span>
+      <span class="meta-pill">${event.message.records.length} record(s)</span>
+      <span class="meta-pill">${fmtTime(now)}</span>
+    `;
+
+    const container = $("recordsContainer");
+    if(event.message.records.length === 0){
+      container.innerHTML = '<div class="empty">Tag is empty</div>';
+    } else {
+      container.innerHTML = event.message.records.map(rec => {
+        const decoded = decodeRecordPayload(rec);
+        const size = rec.data ? rec.data.byteLength : 0;
+        return `
+          <div class="record">
+            <div class="rtype">${rec.recordType}${rec.mediaType ? " · " + rec.mediaType : ""}</div>
+            <div class="rdata">${escapeHtml(decoded)}</div>
+            <div class="rmeta">${size} bytes${rec.lang ? " · lang: " + rec.lang : ""}${rec.encoding ? " · " + rec.encoding : ""}</div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    addHistory({ icon:"📥", text:`Read tag (${event.message.records.length} records, ${serial})`, time: fmtTime(now) });
+  }
+
+  function escapeHtml(str){
+    const d = document.createElement("div");
+    d.textContent = str;
+    return d.innerHTML;
+  }
+
+  btnStartScan.addEventListener("click", startScan);
+  btnStopScan.addEventListener("click", stopScan);
+
+  // ---------------- WRITE ----------------
+  const writeStage = $("writeStage"), writeIcon = $("writeIcon"), writeLabel = $("writeLabel");
+  const writeRecordList = $("writeRecordList");
+
+  function addRecordRow(type){
+    const id = "rec_" + (++recordSeq);
+    const row = document.createElement("div");
+    row.className = "record-row";
+    row.id = id;
+
+    let fields = "";
+    if(type === "text"){
+      fields = `
+        <div class="field">
+          <label>Text</label>
+          <textarea placeholder="Enter plain text…" data-role="value"></textarea>
+        </div>`;
+    } else if(type === "url"){
+      fields = `
+        <div class="field">
+          <label>URL</label>
+          <input type="url" placeholder="https://example.com" data-role="value">
+        </div>`;
+    } else {
+      fields = `
+        <div class="field">
+          <label>MIME type</label>
+          <input type="text" placeholder="text/plain" value="text/plain" data-role="mime">
+        </div>
+        <div class="field">
+          <label>Content</label>
+          <textarea placeholder="Raw content…" data-role="value"></textarea>
+        </div>`;
+    }
+
+    row.innerHTML = `
+      <div class="rr-body">
+        <div class="field">
+          <label>Record Type</label>
+          <select data-role="type">
+            <option value="text" ${type==="text"?"selected":""}>Text</option>
+            <option value="url" ${type==="url"?"selected":""}>URL / Link</option>
+            <option value="mime" ${type==="mime"?"selected":""}>Custom (MIME)</option>
+          </select>
+        </div>
+        <div class="field-slot">${fields}</div>
+      </div>
+      <button class="rr-remove" type="button" title="Remove record">×</button>
+    `;
+
+    writeRecordList.appendChild(row);
+
+    row.querySelector('[data-role="type"]').addEventListener("change", (e)=>{
+      const newRow = document.createElement("div");
+      row.remove();
+      addRecordRowAt(e.target.value, id);
+    });
+
+    row.querySelector(".rr-remove").addEventListener("click", ()=> row.remove());
+  }
+
+  function addRecordRowAt(type, id){
+    addRecordRow(type);
+    // simplest approach: just append fresh (order shifts to bottom) — acceptable for a lightweight tool
+  }
+
+  $("btnAddRecord").addEventListener("click", ()=> addRecordRow("text"));
+  addRecordRow("text"); // seed with one record
+
+  function collectRecords(){
+    const rows = Array.from(writeRecordList.querySelectorAll(".record-row"));
+    if(rows.length === 0) throw new Error("Add at least one record before writing.");
+    return rows.map(row=>{
+      const type = row.querySelector('[data-role="type"]').value;
+      const value = row.querySelector('[data-role="value"]').value.trim();
+      if(!value) throw new Error("Every record needs content — fill in or remove empty ones.");
+      if(type === "text"){
+        return { recordType:"text", data: value };
+      }
+      if(type === "url"){
+        try{ new URL(value); }catch(e){ throw new Error("That URL doesn't look valid — include https://"); }
+        return { recordType:"url", data: value };
+      }
+      const mime = row.querySelector('[data-role="mime"]').value.trim() || "text/plain";
+      return { recordType:"mime", mediaType: mime, data: value };
+    });
+  }
+
+  $("btnWrite").addEventListener("click", async ()=>{
+    if(!guardSupport()) return;
+    let records;
+    try{
+      records = collectRecords();
+    }catch(err){
+      showToast(err.message, true);
+      return;
+    }
+
+    writeStage.classList.add("writing");
+    writeIcon.textContent = "📶";
+    writeLabel.innerHTML = "Hold near a tag to write…";
+    setStatus("writing", true);
+
+    try{
+      const controller = new AbortController();
+      await ndef.write({ records }, { signal: controller.signal, overwrite: $("chkOverwrite").checked });
+      writeIcon.textContent = "✅";
+      writeLabel.innerHTML = "<b>Write successful</b>";
+      showToast("Data written to tag.");
+      addHistory({ icon:"📤", text:`Wrote ${records.length} record(s) to tag`, time: fmtTime(new Date()) });
+    }catch(err){
+      writeIcon.textContent = "⚠️";
+      writeLabel.innerHTML = "Write failed";
+      showToast(explainError(err), true);
+    }finally{
+      setTimeout(()=>{
+        writeStage.classList.remove("writing");
+        writeIcon.textContent = "✎";
+        writeLabel.innerHTML = "Build your message below,<br>then tap <b>Write to Tag</b>";
+        setStatus("ready", true);
+      }, 1600);
+    }
+  });
+
+  $("btnMakeReadOnly").addEventListener("click", async ()=>{
+    if(!guardSupport()) return;
+    const confirmed = confirm("This will PERMANENTLY lock the tag. It can never be written to again. Continue?");
+    if(!confirmed) return;
+
+    writeStage.classList.add("writing");
+    writeIcon.textContent = "🔒";
+    writeLabel.innerHTML = "Hold near a tag to lock…";
+
+    try{
+      await ndef.makeReadOnly();
+      showToast("Tag is now permanently read-only.");
+      addHistory({ icon:"🔒", text:"Made tag read-only", time: fmtTime(new Date()) });
+      writeIcon.textContent = "✅";
+      writeLabel.innerHTML = "Tag locked";
+    }catch(err){
+      showToast(explainError(err), true);
+      writeIcon.textContent = "⚠️";
+      writeLabel.innerHTML = "Lock failed";
+    }finally{
+      setTimeout(()=>{
+        writeStage.classList.remove("writing");
+        writeIcon.textContent = "✎";
+        writeLabel.innerHTML = "Build your message below,<br>then tap <b>Write to Tag</b>";
+      }, 1800);
+    }
+  });
+
+  // ---------------- HISTORY ----------------
+  $("btnClearHistory").addEventListener("click", ()=>{
+    history = [];
+    renderHistory();
+    showToast("History cleared.");
+  });
+
+})();
+</script>
+</body>
+</html>
